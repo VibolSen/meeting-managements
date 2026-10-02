@@ -17,6 +17,8 @@ export type NotificationStatus = "SENT" | "FAILED" | "PENDING";
 export interface Department {
   departmentId: number;
   name: string;
+  description?: string;
+  memberCount?: number;
 }
 
 export interface User {
@@ -338,8 +340,11 @@ export const api = {
   },
   departments: {
     getAll: () => request<Department[]>("/departments"),
+    getById: (id: number) => request<Department>(`/departments/${id}`),
     create: (data: Partial<Department>) =>
       request<Department>("/departments", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: Partial<Department>) =>
+      request<Department>(`/departments/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: number) => request<void>(`/departments/${id}`, { method: "DELETE" }),
   },
 

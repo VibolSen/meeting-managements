@@ -1,41 +1,68 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Building,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-  Users,
-} from "lucide-react";
+import * as XLSX from "xlsx";
 import { api, User, Department } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
+import {
+  DepartmentHeader,
+  DepartmentStatsCards,
+  DepartmentFilterBar,
+  DepartmentTable,
+  DepartmentCardGrid,
+  DepartmentPagination,
+  DepartmentFormModal,
+  DepartmentDetailsModal,
+  DepartmentImportModal,
+  DepartmentBulkActionsBar,
+  DepartmentSortField,
+  SortOrder,
+  DepartmentViewMode,
+  DepartmentFormData,
+} from "@/components/departments";
 
 interface DepartmentManagementViewProps {
   currentUser?: User | null;
 }
 
-export function DepartmentManagementView({ currentUser = null }: DepartmentManagementViewProps = {}) {
+export function DepartmentManagementView({
+  currentUser = null,
+}: DepartmentManagementViewProps = {}) {
   const toast = useToast();
   const { user: authUser } = useAuth();
   const effectiveUser = currentUser || authUser;
   const isAdmin = effectiveUser?.role === "ADMIN";
 
   const [loading, setLoading] = useState(true);
+
+  // Search, Filter & Sort states
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<DepartmentSortField>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
+  // View Mode & Pagination states
+  const [viewMode, setViewMode] = useState<DepartmentViewMode>("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Multi-Selection State for Bulk Actions
+  const [selectedDeptIds, setSelectedDeptIds] = useState<Set<number>>(new Set());
 
   // Data states
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
   // Modal and action states
-  const [deptModalOpen, setDeptModalOpen] = useState(false);
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
+
+  const [selectedDeptForDetail, setSelectedDeptForDetail] = useState<Department | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Global Confirm Dialog State
@@ -56,13 +83,12 @@ export function DepartmentManagementView({ currentUser = null }: DepartmentManag
   });
 
   // Department form state
-  const [deptForm, setDeptForm] = useState<{
-    name: string;
-  }>({
+  const [deptForm, setDeptForm] = useState<DepartmentFormData>({
     name: "",
+    description: "",
   });
 
-  // Load Data
+  // Load Data from Backend
   const loadData = async () => {
     setLoading(true);
     try {
@@ -83,23 +109,178 @@ export function DepartmentManagementView({ currentUser = null }: DepartmentManag
     loadData();
   }, []);
 
-  // Filtered Departments
-  const filteredDepartments = useMemo(() => {
-    return departments.filter((d) =>
-      d.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [departments, searchQuery]);
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, sortOrder]);
 
-  // Department Metrics
+  // Filtered and Sorted Departments
+  const filteredAndSortedDepartments = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+
+    const result = departments.filter((d) => {
+      const matchesSearch =
+        !q ||
+        d.name.toLowerCase().includes(q) ||
+        (d.description && d.description.toLowerCase().includes(q));
+
+      return matchesSearch;
+    });
+
+    result.sort((a, b) => {
+      let comp = 0;
+      if (sortBy === "name") {
+        comp = a.name.localeCompare(b.name);
+      } else if (sortBy === "members") {
+        const countA = users.filter((u) => u.departmentId === a.departmentId).length;
+        const countB = users.filter((u) => u.departmentId === b.departmentId).length;
+        comp = countA - countB;
+      } else if (sortBy === "id") {
+        comp = a.departmentId - b.departmentId;
+      }
+
+      return sortOrder === "asc" ? comp : -comp;
+    });
+
+    return result;
+  }, [departments, users, searchQuery, sortBy, sortOrder]);
+
+  // Paginated Slices
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedDepartments.length / pageSize));
+  const paginatedDepartments = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedDepartments.slice(start, start + pageSize);
+  }, [filteredAndSortedDepartments, currentPage, pageSize]);
+
+  // Department Metrics for Stat Cards
   const stats = useMemo(() => {
     const totalDepts = departments.length;
     const assignedMembers = users.filter((u) => u.departmentId).length;
     const unassignedMembers = users.filter((u) => !u.departmentId).length;
-    return { totalDepts, assignedMembers, unassignedMembers };
+
+    let largestDeptName = "None";
+    let largestDeptCount = 0;
+
+    departments.forEach((d) => {
+      const count = users.filter((u) => u.departmentId === d.departmentId).length;
+      if (count > largestDeptCount) {
+        largestDeptCount = count;
+        largestDeptName = d.name;
+      }
+    });
+
+    return {
+      totalDepts,
+      assignedMembers,
+      unassignedMembers,
+      largestDeptName: largestDeptCount > 0 ? largestDeptName : "None",
+      largestDeptCount,
+    };
   }, [departments, users]);
 
-  // Handle Create Department
-  const handleSaveDepartment = async (e: React.FormEvent) => {
+  // Reset all filters & sorting
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSortBy("name");
+    setSortOrder("asc");
+    setCurrentPage(1);
+  };
+
+  const isFiltered = searchQuery !== "" || sortBy !== "name" || sortOrder !== "asc";
+
+  // Selection Logic for Checkboxes
+  const handleToggleSelectDept = (deptId: number) => {
+    setSelectedDeptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(deptId)) {
+        next.delete(deptId);
+      } else {
+        next.add(deptId);
+      }
+      return next;
+    });
+  };
+
+  const isAllCurrentPageSelected = useMemo(() => {
+    if (paginatedDepartments.length === 0) return false;
+    return paginatedDepartments.every((d) => selectedDeptIds.has(d.departmentId));
+  }, [paginatedDepartments, selectedDeptIds]);
+
+  const handleToggleSelectAll = () => {
+    setSelectedDeptIds((prev) => {
+      const next = new Set(prev);
+      if (isAllCurrentPageSelected) {
+        paginatedDepartments.forEach((d) => next.delete(d.departmentId));
+      } else {
+        paginatedDepartments.forEach((d) => next.add(d.departmentId));
+      }
+      return next;
+    });
+  };
+
+  // Export to Excel (.xlsx)
+  const handleExportExcel = () => {
+    if (filteredAndSortedDepartments.length === 0) {
+      toast.error("No departments to export matching current search criteria.");
+      return;
+    }
+
+    try {
+      const data = filteredAndSortedDepartments.map((d) => {
+        const count = users.filter((u) => u.departmentId === d.departmentId).length;
+        return {
+          "Department ID": d.departmentId,
+          "Department Name": d.name,
+          "Description": d.description || "N/A",
+          "Assigned Members Count": count,
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Departments");
+      XLSX.writeFile(
+        workbook,
+        `departments_directory_${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+      toast.success(
+        `Exported ${filteredAndSortedDepartments.length} department records to Excel (.xlsx).`
+      );
+    } catch {
+      toast.error("Failed to export Excel file.");
+    }
+  };
+
+  // Open Create Modal
+  const handleOpenCreateModal = () => {
+    setFormMode("create");
+    setEditingDeptId(null);
+    setDeptForm({
+      name: "",
+      description: "",
+    });
+    setFormModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const handleOpenEditModal = (dept: Department) => {
+    setFormMode("edit");
+    setEditingDeptId(dept.departmentId);
+    setDeptForm({
+      name: dept.name,
+      description: dept.description || "",
+    });
+    setFormModalOpen(true);
+  };
+
+  // Open View Details Modal
+  const handleViewDepartment = (dept: Department) => {
+    setSelectedDeptForDetail(dept);
+    setDetailModalOpen(true);
+  };
+
+  // Handle Form Submit (Create or Update)
+  const handleSubmitDeptForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deptForm.name.trim()) {
       toast.error("Department name is required.");
@@ -108,26 +289,45 @@ export function DepartmentManagementView({ currentUser = null }: DepartmentManag
 
     setActionLoading(true);
     try {
-      await api.departments.create({
-        name: deptForm.name.trim(),
-      });
-      toast.success("Department created successfully.");
-      setDeptModalOpen(false);
-      setDeptForm({ name: "" });
+      if (formMode === "create") {
+        await api.departments.create({
+          name: deptForm.name.trim(),
+          description: deptForm.description?.trim() || undefined,
+        });
+        toast.success(`Department "${deptForm.name.trim()}" created successfully.`);
+      } else if (formMode === "edit" && editingDeptId) {
+        await api.departments.update(editingDeptId, {
+          name: deptForm.name.trim(),
+          description: deptForm.description?.trim() || undefined,
+        });
+        toast.success(`Department "${deptForm.name.trim()}" updated successfully.`);
+      }
+
+      setFormModalOpen(false);
+      setDeptForm({ name: "", description: "" });
       loadData();
     } catch (err: any) {
-      toast.error(err?.message || "Failed to create department.");
+      toast.error(
+        err?.message ||
+          `Failed to ${formMode === "create" ? "create" : "update"} department.`
+      );
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Handle Delete Department
+  // Handle Delete Single Department
   const handleDeleteDepartment = (id: number, name: string) => {
+    const assignedCount = users.filter((u) => u.departmentId === id).length;
+
     setConfirmDialog({
       isOpen: true,
       title: "Delete Department",
-      message: `Are you sure you want to delete department "${name}"? Existing team members assigned to this department will need reassignment.`,
+      message: `Are you sure you want to permanently delete department "${name}"? ${
+        assignedCount > 0
+          ? `${assignedCount} assigned team members will be safely unassigned.`
+          : "This action cannot be undone."
+      }`,
       variant: "danger",
       confirmText: "Delete Department",
       onConfirm: async () => {
@@ -135,6 +335,11 @@ export function DepartmentManagementView({ currentUser = null }: DepartmentManag
         try {
           await api.departments.delete(id);
           toast.success(`Department "${name}" deleted.`);
+          setSelectedDeptIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
           setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
           loadData();
         } catch (err: any) {
@@ -146,199 +351,160 @@ export function DepartmentManagementView({ currentUser = null }: DepartmentManag
     });
   };
 
+  // Bulk Action: Batch Delete Departments
+  const handleBatchDelete = () => {
+    const toDeleteIds = Array.from(selectedDeptIds);
+    if (toDeleteIds.length === 0) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: `Delete ${toDeleteIds.length} Departments`,
+      message: `Are you sure you want to permanently delete these ${toDeleteIds.length} selected departments? Any assigned members will be safely unassigned.`,
+      variant: "danger",
+      confirmText: "Delete Selected",
+      onConfirm: async () => {
+        setActionLoading(true);
+        let success = 0;
+        for (const id of toDeleteIds) {
+          try {
+            await api.departments.delete(id);
+            success++;
+          } catch {}
+        }
+        setActionLoading(false);
+        toast.success(`Deleted ${success} departments.`);
+        setSelectedDeptIds(new Set());
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        loadData();
+      },
+    });
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-50/80 via-white to-slate-50 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-              <Building className="w-4 h-4" />
-            </span>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Department Management
-            </h2>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Configure company divisions, teams, department leadership, and organizational allocations.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            isLoading={loading}
-            className="h-8.5 text-xs px-3"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Refresh
-          </Button>
-
-          {isAdmin && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setDeptModalOpen(true)}
-              className="h-8.5 text-xs px-3 gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Department
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* Top Banner with Refresh, Import, and Add Department */}
+      <DepartmentHeader
+        isAdmin={isAdmin}
+        loading={loading}
+        onRefresh={loadData}
+        onAddDepartment={handleOpenCreateModal}
+        onImportDepartments={() => setImportModalOpen(true)}
+      />
 
       {/* Metrics Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 rounded-xl border border-slate-200 bg-white shadow-xs">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Departments</p>
-          <p className="text-xl font-extrabold text-slate-900 mt-0.5">{stats.totalDepts}</p>
-        </div>
-        <div className="p-3 rounded-xl border border-slate-200 bg-white shadow-xs">
-          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Assigned Members</p>
-          <p className="text-xl font-extrabold text-indigo-900 mt-0.5">{stats.assignedMembers}</p>
-        </div>
-        <div className="p-3 rounded-xl border border-slate-200 bg-white shadow-xs">
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Unassigned Members</p>
-          <p className="text-xl font-extrabold text-amber-800 mt-0.5">{stats.unassignedMembers}</p>
-        </div>
-      </div>
+      <DepartmentStatsCards stats={stats} />
 
-      {/* Search Bar */}
-      <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search departments by name..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:bg-white"
+      {/* Filter and Search Bar with 2-Row layout and Table/Grid Views */}
+      <div className="space-y-1.5">
+        <DepartmentFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          sortOrder={sortOrder}
+          onToggleSortOrder={() =>
+            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+          }
+          onResetFilters={handleResetFilters}
+          isFiltered={isFiltered}
+          totalResults={filteredAndSortedDepartments.length}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onExportExcel={handleExportExcel}
+        />
+
+        {/* Main Departments View: Table or Card Grid */}
+        {viewMode === "table" ? (
+          <DepartmentTable
+            departments={paginatedDepartments}
+            users={users}
+            loading={loading}
+            isAdmin={isAdmin}
+            actionLoading={actionLoading}
+            selectedDeptIds={selectedDeptIds}
+            onToggleSelectDept={handleToggleSelectDept}
+            onToggleSelectAll={handleToggleSelectAll}
+            isAllSelected={isAllCurrentPageSelected}
+            onViewDepartment={handleViewDepartment}
+            onEditDepartment={handleOpenEditModal}
+            onDeleteDepartment={handleDeleteDepartment}
           />
-        </div>
+        ) : (
+          <DepartmentCardGrid
+            departments={paginatedDepartments}
+            users={users}
+            loading={loading}
+            isAdmin={isAdmin}
+            actionLoading={actionLoading}
+            selectedDeptIds={selectedDeptIds}
+            onToggleSelectDept={handleToggleSelectDept}
+            onViewDepartment={handleViewDepartment}
+            onEditDepartment={handleOpenEditModal}
+            onDeleteDepartment={handleDeleteDepartment}
+          />
+        )}
       </div>
 
-      {/* Departments Grid */}
-      {loading ? (
-        <div className="p-12 text-center text-slate-400">
-          <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <span className="text-xs">Loading departments...</span>
-        </div>
-      ) : filteredDepartments.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-xl border border-slate-200 shadow-xs">
-          <Building className="w-10 h-10 text-slate-300 mx-auto mb-2 stroke-[1.5]" />
-          <h3 className="text-sm font-semibold text-slate-800">No departments found</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Create your first department to organize staff and meetings.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredDepartments.map((d) => {
-            const deptUsers = users.filter((u) => u.departmentId === d.departmentId);
-            return (
-              <div
-                key={d.departmentId}
-                className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs hover:border-indigo-300 hover:shadow-sm transition-all flex flex-col justify-between"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                      <Building className="w-4.5 h-4.5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-900 leading-tight">{d.name}</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Department #{d.departmentId}</p>
-                    </div>
-                  </div>
-
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDepartment(d.departmentId, d.name)}
-                      disabled={actionLoading}
-                      className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Delete Department"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-                    <Users className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{deptUsers.length} Assigned Members</span>
-                  </span>
-
-                  {deptUsers.length > 0 && (
-                    <div className="flex -space-x-1.5 overflow-hidden">
-                      {deptUsers.slice(0, 3).map((u) => (
-                        <div
-                          key={u.userId}
-                          title={u.name}
-                          className="w-5.5 h-5.5 rounded-full bg-indigo-600 text-white font-extrabold text-[9px] flex items-center justify-center ring-2 ring-white"
-                        >
-                          {u.name ? u.name.charAt(0).toUpperCase() : "U"}
-                        </div>
-                      ))}
-                      {deptUsers.length > 3 && (
-                        <div className="w-5.5 h-5.5 rounded-full bg-slate-200 text-slate-700 font-bold text-[9px] flex items-center justify-center ring-2 ring-white">
-                          +{deptUsers.length - 3}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Pagination Controls */}
+      {!loading && filteredAndSortedDepartments.length > 0 && (
+        <DepartmentPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredAndSortedDepartments.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       )}
 
-      {/* Add Department Modal */}
-      <Modal
-        isOpen={deptModalOpen}
-        onClose={() => setDeptModalOpen(false)}
-        title="Create New Department"
-      >
-        <form onSubmit={handleSaveDepartment} className="space-y-3.5">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Department Name</label>
-            <Input
-              type="text"
-              required
-              placeholder="e.g. Engineering, Marketing, Finance"
-              value={deptForm.name}
-              onChange={(e) => setDeptForm({ name: e.target.value })}
-            />
-          </div>
+      {/* Floating Bulk Actions Bar */}
+      {isAdmin && (
+        <DepartmentBulkActionsBar
+          selectedCount={selectedDeptIds.size}
+          onClearSelection={() => setSelectedDeptIds(new Set())}
+          onBatchDelete={handleBatchDelete}
+          actionLoading={actionLoading}
+        />
+      )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setDeptModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              isLoading={actionLoading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              Create Department
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Create / Edit Department Modal */}
+      <DepartmentFormModal
+        isOpen={formModalOpen}
+        onClose={() => setFormModalOpen(false)}
+        onSubmit={handleSubmitDeptForm}
+        deptForm={deptForm}
+        setDeptForm={setDeptForm}
+        actionLoading={actionLoading}
+        mode={formMode}
+      />
+
+      {/* Department Details Modal with Full Assigned Member Roster */}
+      <DepartmentDetailsModal
+        department={selectedDeptForDetail}
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        users={users}
+        isAdmin={isAdmin}
+        onEdit={(dept) => handleOpenEditModal(dept)}
+      />
+
+      {/* Excel / Google Sheets Department Import Modal */}
+      <DepartmentImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        existingDepartments={departments}
+        onSuccess={loadData}
+      />
 
       {/* Global Confirmation Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        onClose={() => !actionLoading && setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onClose={() =>
+          !actionLoading && setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
+        }
         onConfirm={confirmDialog.onConfirm}
         title={confirmDialog.title}
         message={confirmDialog.message}
