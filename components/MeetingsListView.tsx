@@ -1,38 +1,41 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Search,
-  Filter,
-  Check,
-  Ban,
-  Eye,
-  Plus,
-  RefreshCw,
-  Layers,
-  Wrench,
-  UserCheck,
-  Building,
-} from "lucide-react";
-import { api, Meeting, User, MeetingStatus, AttendeeResponseStatus } from "@/lib/api";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/Toast";
+import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
+import {
+  api,
+  Meeting,
+  Room,
+  User,
+  AttendeeResponseStatus,
+} from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ResourcePagination } from "@/components/resources/shared/ResourcePagination";
+
+import {
+  MeetingHeader,
+  MeetingStatsCards,
+  MeetingFilterBar,
+  MeetingTable,
+  MeetingCardGrid,
+  MeetingDetailsModal,
+  MeetingCancelModal,
+  MeetingBulkActionsBar,
+  MeetingSortField,
+  SortOrder,
+  MeetingStatusFilter,
+  MeetingViewMode,
+  MeetingStats,
+} from "@/components/meetings";
+import { BookingModal } from "@/components/BookingModal";
 
 interface MeetingsListViewProps {
   currentUser?: User | null;
   onNavigateToBooking?: () => void;
 }
-
-type FilterTab = "ALL" | "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "MINE";
 
 export function MeetingsListView({
   currentUser = null,
@@ -42,29 +45,65 @@ export function MeetingsListView({
   const router = useRouter();
   const { user: authUser } = useAuth();
   const effectiveUser = currentUser || authUser;
+  const isAdmin = effectiveUser?.role === "ADMIN";
 
-  const handleBooking = () => {
-    if (onNavigateToBooking) {
-      onNavigateToBooking();
-    } else {
-      router.push("/admin/dashboard?tab=booking");
-    }
-  };
+  // Data states
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Load All Meetings
-  const loadMeetings = async () => {
+  // Search & Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<MeetingStatusFilter>("ALL");
+  const [roomIdFilter, setRoomIdFilter] = useState<number | "ALL">("ALL");
+  const [sortBy, setSortBy] = useState<MeetingSortField>("startTime");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [viewMode, setViewMode] = useState<MeetingViewMode>("table");
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Multi-select state for bulk actions
+  const [selectedMeetingIds, setSelectedMeetingIds] = useState<Set<number>>(new Set());
+
+  // Modal states
+  const [selectedMeetingForDetail, setSelectedMeetingForDetail] = useState<Meeting | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  const [meetingToCancel, setMeetingToCancel] = useState<Meeting | null>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+
+  // Global Confirm Dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant?: "danger" | "warning" | "primary";
+    confirmText?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "danger",
+    confirmText: "Confirm",
+    onConfirm: () => {},
+  });
+
+  // Load Data
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await api.meetings.getAll();
-      setMeetings(data);
+      const [meetingsData, roomsData] = await Promise.all([
+        api.meetings.getAll().catch(() => []),
+        api.rooms.getAll().catch(() => []),
+      ]);
+      setMeetings(meetingsData || []);
+      setRooms(roomsData || []);
     } catch {
       toast.error("Failed to load meetings", "Check backend server status.");
     } finally {
@@ -73,35 +112,135 @@ export function MeetingsListView({
   };
 
   useEffect(() => {
-    loadMeetings();
+    loadData();
   }, []);
 
-  // Admin Approval Action
+  // Compute Stats
+  const stats: MeetingStats = useMemo(() => {
+    const total = meetings.length;
+    const pending = meetings.filter((m) => m.status === "PENDING").length;
+    const confirmed = meetings.filter((m) => m.status === "CONFIRMED").length;
+    const completed = meetings.filter((m) => m.status === "COMPLETED").length;
+    const cancelled = meetings.filter((m) => m.status === "CANCELLED").length;
+    const myMeetings = effectiveUser
+      ? meetings.filter(
+          (m) =>
+            m.organizer?.userId === effectiveUser.userId ||
+            m.attendees?.some((a) => a.userId === effectiveUser.userId)
+        ).length
+      : 0;
+
+    return { total, pending, confirmed, completed, cancelled, myMeetings };
+  }, [meetings, effectiveUser]);
+
+  // Filter & Sort
+  const filteredAndSortedMeetings = useMemo(() => {
+    return meetings
+      .filter((m) => {
+        // Status tab/filter
+        if (statusFilter === "PENDING" && m.status !== "PENDING") return false;
+        if (statusFilter === "CONFIRMED" && m.status !== "CONFIRMED") return false;
+        if (statusFilter === "COMPLETED" && m.status !== "COMPLETED") return false;
+        if (statusFilter === "CANCELLED" && m.status !== "CANCELLED") return false;
+        if (statusFilter === "MINE") {
+          const isOrganizer = m.organizer?.userId === effectiveUser?.userId;
+          const isAttendee = m.attendees?.some((a) => a.userId === effectiveUser?.userId);
+          if (!isOrganizer && !isAttendee) return false;
+        }
+
+        // Room filter
+        if (roomIdFilter !== "ALL" && m.room?.roomId !== roomIdFilter) {
+          return false;
+        }
+
+        // Text query
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchTitle = m.title?.toLowerCase().includes(q);
+          const matchPurpose = m.purpose?.toLowerCase().includes(q);
+          const matchRoom = m.room?.name?.toLowerCase().includes(q);
+          const matchLocation = m.room?.location?.toLowerCase().includes(q);
+          const matchOrganizer = m.organizer?.name?.toLowerCase().includes(q);
+          if (!matchTitle && !matchPurpose && !matchRoom && !matchLocation && !matchOrganizer) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        let cmp = 0;
+        if (sortBy === "startTime") {
+          cmp = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+        } else if (sortBy === "title") {
+          cmp = (a.title || "").localeCompare(b.title || "");
+        } else if (sortBy === "room") {
+          cmp = (a.room?.name || "").localeCompare(b.room?.name || "");
+        } else if (sortBy === "status") {
+          cmp = (a.status || "").localeCompare(b.status || "");
+        }
+        return sortOrder === "asc" ? cmp : -cmp;
+      });
+  }, [meetings, statusFilter, roomIdFilter, searchQuery, sortBy, sortOrder, effectiveUser]);
+
+  // Paginated Meetings
+  const paginatedMeetings = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAndSortedMeetings.slice(start, start + pageSize);
+  }, [filteredAndSortedMeetings, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredAndSortedMeetings.length / pageSize) || 1;
+
+  // New Booking Pop-up Modal
+  const handleBooking = () => {
+    if (onNavigateToBooking) {
+      onNavigateToBooking();
+    } else {
+      setBookingModalOpen(true);
+    }
+  };
+
+  // Single Actions
+  const handleView = (meeting: Meeting) => {
+    setSelectedMeetingForDetail(meeting);
+    setDetailModalOpen(true);
+  };
+
   const handleApprove = async (meetingId: number) => {
     setActionLoading(true);
     try {
       await api.meetings.approve(meetingId);
       toast.success("Meeting Approved", "Boardroom reservation is confirmed.");
-      setSelectedMeeting(null);
-      await loadMeetings();
+      if (selectedMeetingForDetail?.meetingId === meetingId) {
+        setSelectedMeetingForDetail({ ...selectedMeetingForDetail, status: "CONFIRMED" });
+      }
+      await loadData();
     } catch {
-      toast.error("Approval Failed", "Could not approve the meeting.");
+      toast.error("Approval Failed", "Could not approve the meeting reservation.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Cancel Meeting Action (Restores inventory)
+  const handleOpenCancelModal = (meeting: Meeting) => {
+    setMeetingToCancel(meeting);
+    setCancelReason("");
+    setCancelModalOpen(true);
+  };
+
   const handleConfirmCancel = async () => {
-    if (!selectedMeeting) return;
+    if (!meetingToCancel) return;
     setActionLoading(true);
     try {
-      await api.meetings.cancel(selectedMeeting.meetingId, cancelReason);
+      await api.meetings.cancel(meetingToCancel.meetingId, cancelReason);
       toast.success("Meeting Cancelled", "Equipment inventory stock has been restored.");
       setCancelModalOpen(false);
       setCancelReason("");
-      setSelectedMeeting(null);
-      await loadMeetings();
+      setMeetingToCancel(null);
+      if (selectedMeetingForDetail?.meetingId === meetingToCancel.meetingId) {
+        setDetailModalOpen(false);
+      }
+      await loadData();
     } catch {
       toast.error("Cancellation Failed", "Could not cancel meeting.");
     } finally {
@@ -109,588 +248,310 @@ export function MeetingsListView({
     }
   };
 
-  // RSVP Action
   const handleRSVP = async (meetingId: number, status: AttendeeResponseStatus) => {
-    if (!currentUser) return;
+    if (!effectiveUser) return;
     setActionLoading(true);
     try {
-      await api.meetings.updateRSVP(meetingId, currentUser.userId, status);
+      await api.meetings.updateRSVP(meetingId, effectiveUser.userId, status);
       toast.success(
         status === "ACCEPTED" ? "RSVP Accepted" : "RSVP Declined",
-        "Your response was saved."
+        "Your attendance response was recorded."
       );
-      if (selectedMeeting && selectedMeeting.meetingId === meetingId) {
+      if (selectedMeetingForDetail && selectedMeetingForDetail.meetingId === meetingId) {
         const updated = await api.meetings.getById(meetingId);
-        setSelectedMeeting(updated);
+        setSelectedMeetingForDetail(updated);
       }
-      await loadMeetings();
+      await loadData();
     } catch {
-      toast.error("RSVP Failed", "Could not update your attendance.");
+      toast.error("RSVP Failed", "Could not update attendance status.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Filtered Meetings
-  const filteredMeetings = useMemo(() => {
-    return meetings.filter((m) => {
-      // Tab filter
-      if (activeTab === "PENDING" && m.status !== "PENDING") return false;
-      if (activeTab === "CONFIRMED" && m.status !== "CONFIRMED") return false;
-      if (activeTab === "COMPLETED" && m.status !== "COMPLETED") return false;
-      if (activeTab === "CANCELLED" && m.status !== "CANCELLED") return false;
-      if (activeTab === "MINE") {
-        const isOrganizer = m.organizer?.userId === currentUser?.userId;
-        const isAttendee = m.attendees?.some((a) => a.userId === currentUser?.userId);
-        if (!isOrganizer && !isAttendee) return false;
-      }
+  // Multi-select & Bulk Actions
+  const handleToggleSelectMeeting = (meetingId: number) => {
+    const next = new Set(selectedMeetingIds);
+    if (next.has(meetingId)) next.delete(meetingId);
+    else next.add(meetingId);
+    setSelectedMeetingIds(next);
+  };
 
-      // Search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = m.title?.toLowerCase().includes(query);
-        const matchesRoom = m.room?.name?.toLowerCase().includes(query);
-        const matchesOrganizer = m.organizer?.name?.toLowerCase().includes(query);
-        const matchesPurpose = m.purpose?.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesRoom && !matchesOrganizer && !matchesPurpose) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [meetings, activeTab, searchQuery, currentUser]);
-
-  // Pending Count for Badge
-  const pendingCount = useMemo(() => {
-    return meetings.filter((m) => m.status === "PENDING").length;
-  }, [meetings]);
-
-  const confirmedCount = useMemo(() => {
-    return meetings.filter((m) => m.status === "CONFIRMED").length;
-  }, [meetings]);
-
-  const myMeetingsCount = useMemo(() => {
-    if (!currentUser) return 0;
-    return meetings.filter(
-      (m) =>
-        m.organizer?.userId === currentUser.userId ||
-        m.attendees?.some((a) => a.userId === currentUser.userId)
-    ).length;
-  }, [meetings, currentUser]);
-
-  const getStatusBadge = (status: MeetingStatus) => {
-    switch (status) {
-      case "CONFIRMED":
-        return <Badge variant="confirmed">Confirmed</Badge>;
-      case "PENDING":
-        return <Badge variant="pending">Pending Approval</Badge>;
-      case "CANCELLED":
-        return <Badge variant="cancelled">Cancelled</Badge>;
-      case "COMPLETED":
-        return <Badge variant="completed">Completed</Badge>;
-      default:
-        return <Badge variant="neutral">{status}</Badge>;
+  const handleToggleSelectAll = () => {
+    const curIds = paginatedMeetings.map((m) => m.meetingId);
+    const isAll = curIds.every((id) => selectedMeetingIds.has(id));
+    const next = new Set(selectedMeetingIds);
+    if (isAll) {
+      curIds.forEach((id) => next.delete(id));
+    } else {
+      curIds.forEach((id) => next.add(id));
     }
+    setSelectedMeetingIds(next);
+  };
+
+  const handleBulkApprove = async () => {
+    const eligible = meetings.filter(
+      (m) => selectedMeetingIds.has(m.meetingId) && m.status === "PENDING"
+    );
+    if (eligible.length === 0) {
+      toast.warning("No Pending Meetings", "None of the selected meetings are awaiting approval.");
+      return;
+    }
+
+    setActionLoading(true);
+    let count = 0;
+    for (const m of eligible) {
+      try {
+        await api.meetings.approve(m.meetingId);
+        count++;
+      } catch {}
+    }
+    setActionLoading(false);
+    toast.success(`Approved ${count} meetings successfully.`);
+    setSelectedMeetingIds(new Set());
+    await loadData();
+  };
+
+  const handleBulkCancel = () => {
+    const eligible = meetings.filter(
+      (m) => selectedMeetingIds.has(m.meetingId) && (m.status === "PENDING" || m.status === "CONFIRMED")
+    );
+    if (eligible.length === 0) {
+      toast.warning("No Active Meetings", "None of the selected meetings can be cancelled.");
+      return;
+    }
+
+    setConfirmDialog({
+      isOpen: true,
+      title: `Cancel ${eligible.length} Selected Meetings`,
+      message: `Are you sure you want to cancel ${eligible.length} meetings? This will release reserved rooms and restore equipment back into inventory.`,
+      variant: "danger",
+      confirmText: `Cancel ${eligible.length} Meetings`,
+      onConfirm: async () => {
+        setActionLoading(true);
+        let count = 0;
+        for (const m of eligible) {
+          try {
+            await api.meetings.cancel(m.meetingId, "Bulk administrative cancellation");
+            count++;
+          } catch {}
+        }
+        setActionLoading(false);
+        toast.success(`Cancelled ${count} meetings.`);
+        setSelectedMeetingIds(new Set());
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await loadData();
+      },
+    });
+  };
+
+  const handleBulkExport = () => {
+    const selected = meetings.filter((m) => selectedMeetingIds.has(m.meetingId));
+    if (selected.length === 0) return;
+    exportMeetingsToExcel(selected, "Selected_Meetings_Schedule.xlsx");
+    toast.success("Excel Exported", `Saved ${selected.length} meetings to spreadsheet.`);
+  };
+
+  const handleExportFilteredExcel = () => {
+    if (filteredAndSortedMeetings.length === 0) {
+      toast.warning("Export Warning", "No meetings to export.");
+      return;
+    }
+    exportMeetingsToExcel(filteredAndSortedMeetings, "Meetings_Schedule_Export.xlsx");
+    toast.success("Excel Exported", `Saved ${filteredAndSortedMeetings.length} meetings to spreadsheet.`);
+  };
+
+  const exportMeetingsToExcel = (list: Meeting[], filename: string) => {
+    const data = list.map((m) => ({
+      "Meeting ID": m.meetingId,
+      "Title": m.title,
+      "Purpose": m.purpose || "",
+      "Status": m.status,
+      "Start Date & Time": m.startTime.replace("T", " "),
+      "End Date & Time": m.endTime.replace("T", " "),
+      "Room": m.room?.name || "Unassigned",
+      "Room Location": m.room?.location || "",
+      "Organizer": m.organizer?.name || "Unknown",
+      "Organizer Email": m.organizer?.email || "",
+      "Total Attendees": m.attendees?.length || 0,
+      "Total Equipment": m.materials?.length || 0,
+      "Total Staff Assigned": m.staffAssignments?.length || 0,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Meetings");
+    XLSX.writeFile(wb, filename);
   };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* Top Banner & Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-50/80 via-white to-slate-50 shadow-xs">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Meetings & Approvals
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Track schedules, manage boardroom approvals, inspect logistics, and submit attendance RSVPs.
-          </p>
-        </div>
+      {/* Header */}
+      <MeetingHeader
+        loading={loading}
+        totalMeetings={meetings.length}
+        pendingCount={stats.pending}
+        onRefresh={loadData}
+        onNewBooking={handleBooking}
+        onExportExcel={handleExportFilteredExcel}
+      />
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadMeetings}
-            isLoading={loading}
-            className="h-8.5 text-xs px-3"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Refresh
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleBooking}
-            className="h-8.5 text-xs px-3 gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New Booking
-          </Button>
-        </div>
-      </div>
+      {/* KPI Stats Cards */}
+      <MeetingStatsCards
+        stats={stats}
+        currentStatusFilter={statusFilter}
+        onFilterChange={(f) => {
+          setStatusFilter(f);
+          setCurrentPage(1);
+        }}
+      />
 
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-2 rounded-2xl bg-slate-100 border border-slate-200">
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-1">
-          <button
-            onClick={() => setActiveTab("ALL")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
-              activeTab === "ALL"
-                ? "bg-white text-indigo-600 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium"
-            }`}
-          >
-            All ({meetings.length})
-          </button>
+      {/* Filter Bar and Data Presentation with tight spacing */}
+      <div className="space-y-1.5">
+        <MeetingFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={(q) => {
+            setSearchQuery(q);
+            setCurrentPage(1);
+          }}
+          statusFilter={statusFilter}
+          onStatusFilterChange={(s) => {
+            setStatusFilter(s);
+            setCurrentPage(1);
+          }}
+          roomIdFilter={roomIdFilter}
+          onRoomIdFilterChange={(r) => {
+            setRoomIdFilter(r);
+            setCurrentPage(1);
+          }}
+          rooms={rooms}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          sortOrder={sortOrder}
+          onToggleSortOrder={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onResetFilters={() => {
+            setSearchQuery("");
+            setStatusFilter("ALL");
+            setRoomIdFilter("ALL");
+            setSortBy("startTime");
+            setSortOrder("desc");
+            setCurrentPage(1);
+          }}
+          isFiltered={
+            searchQuery.trim().length > 0 ||
+            statusFilter !== "ALL" ||
+            roomIdFilter !== "ALL" ||
+            sortBy !== "startTime" ||
+            sortOrder !== "desc"
+          }
+          totalResults={filteredAndSortedMeetings.length}
+          onExportExcel={handleExportFilteredExcel}
+        />
 
-          <button
-            onClick={() => setActiveTab("PENDING")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
-              activeTab === "PENDING"
-                ? "bg-white text-amber-600 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium"
-            }`}
-          >
-            <span>Pending Approvals</span>
-            {pendingCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("CONFIRMED")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
-              activeTab === "CONFIRMED"
-                ? "bg-white text-emerald-600 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium"
-            }`}
-          >
-            Confirmed ({confirmedCount})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("MINE")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
-              activeTab === "MINE"
-                ? "bg-white text-violet-600 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium"
-            }`}
-          >
-            My Meetings ({myMeetingsCount})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("CANCELLED")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
-              activeTab === "CANCELLED"
-                ? "bg-white text-rose-600 font-bold shadow-xs border border-slate-200/80"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium"
-            }`}
-          >
-            Cancelled
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="relative min-w-[240px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search meetings, rooms, organizers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-xs"
+        {viewMode === "table" ? (
+          <MeetingTable
+            meetings={paginatedMeetings}
+            loading={loading}
+            isAdmin={isAdmin}
+            currentUser={effectiveUser}
+            actionLoading={actionLoading}
+            selectedMeetingIds={selectedMeetingIds}
+            onToggleSelectMeeting={handleToggleSelectMeeting}
+            onToggleSelectAll={handleToggleSelectAll}
+            isAllSelected={
+              paginatedMeetings.length > 0 &&
+              paginatedMeetings.every((m) => selectedMeetingIds.has(m.meetingId))
+            }
+            onViewMeeting={handleView}
+            onApproveMeeting={handleApprove}
+            onRequestCancelMeeting={handleOpenCancelModal}
+            onRSVP={handleRSVP}
           />
-        </div>
+        ) : (
+          <MeetingCardGrid
+            meetings={paginatedMeetings}
+            loading={loading}
+            isAdmin={isAdmin}
+            currentUser={effectiveUser}
+            actionLoading={actionLoading}
+            selectedMeetingIds={selectedMeetingIds}
+            onToggleSelectMeeting={handleToggleSelectMeeting}
+            onViewMeeting={handleView}
+            onApproveMeeting={handleApprove}
+            onRequestCancelMeeting={handleOpenCancelModal}
+            onRSVP={handleRSVP}
+          />
+        )}
+
+        <ResourcePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredAndSortedMeetings.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="meetings"
+        />
       </div>
 
-      {/* Meetings List Feed */}
-      {filteredMeetings.length === 0 ? (
-        <Card className="p-12 text-center border-slate-200 bg-white">
-          <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-900">No meetings found</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            {searchQuery
-              ? `No meetings matching "${searchQuery}". Try changing your search or filter.`
-              : "No meetings found in this category. Schedule a meeting to get started."}
-          </p>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onNavigateToBooking}
-            className="mt-4 gap-2 text-xs"
-          >
-            <Plus className="w-4 h-4" />
-            Book a Meeting
-          </Button>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredMeetings.map((m) => {
-            const startDateStr = m.startTime.replace("T", " ").slice(0, 16);
-            const endDateStr = m.endTime.replace("T", " ").slice(11, 16);
-            const isOrganizer = m.organizer?.userId === currentUser?.userId;
-            const currentUserAttendee = m.attendees?.find((a) => a.userId === currentUser?.userId);
-
-            return (
-              <Card
-                key={m.meetingId}
-                className="p-5 border-slate-200 bg-white hover:border-indigo-300 transition-all group shadow-xs"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                  {/* Left Column: Meeting Info */}
-                  <div className="space-y-3 flex-1">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      {getStatusBadge(m.status)}
-                      <h3
-                        onClick={() => setSelectedMeeting(m)}
-                        className="text-base sm:text-lg font-bold text-slate-900 hover:text-indigo-600 transition-colors cursor-pointer"
-                      >
-                        {m.title}
-                      </h3>
-                      {isOrganizer && (
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-semibold">
-                          You organized
-                        </span>
-                      )}
-                    </div>
-
-                    {m.purpose && (
-                      <p className="text-xs text-slate-600 line-clamp-2 max-w-3xl">
-                        {m.purpose}
-                      </p>
-                    )}
-
-                    {/* Metadata chips */}
-                    <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-500">
-                      <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                        <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                        {startDateStr} &rarr; {endDateStr}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <strong className="text-slate-800">{m.room?.name}</strong> ({m.room?.location})
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        {m.attendees?.length || 0} Attendees
-                      </span>
-                      {m.materials && m.materials.length > 0 && (
-                        <span className="flex items-center gap-1.5 text-slate-500">
-                          <Layers className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-                          {m.materials.length} Equipment items
-                        </span>
-                      )}
-                      {m.staffAssignments && m.staffAssignments.length > 0 && (
-                        <span className="flex items-center gap-1.5 text-slate-500">
-                          <Wrench className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                          {m.staffAssignments.length} Staff assigned
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Column: Actions */}
-                  <div className="flex flex-wrap items-center gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                    {/* Admin Boardroom Approval Button */}
-                    {currentUser?.role === "ADMIN" && m.status === "PENDING" && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleApprove(m.meetingId)}
-                        isLoading={actionLoading}
-                        className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-xs gap-1.5 shadow-md shadow-emerald-600/20"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        Approve
-                      </Button>
-                    )}
-
-                    {/* Attendee Quick RSVP */}
-                    {currentUserAttendee && m.status !== "CANCELLED" && (
-                      <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                        <span className="text-[10px] text-slate-500 uppercase font-bold px-1">
-                          RSVP:
-                        </span>
-                        <button
-                          onClick={() => handleRSVP(m.meetingId, "ACCEPTED")}
-                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                            currentUserAttendee.responseStatus === "ACCEPTED"
-                              ? "bg-emerald-600 text-white"
-                              : "text-slate-600 hover:text-emerald-700"
-                          }`}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRSVP(m.meetingId, "DECLINED")}
-                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                            currentUserAttendee.responseStatus === "DECLINED"
-                              ? "bg-rose-600 text-white"
-                              : "text-slate-600 hover:text-rose-700"
-                          }`}
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    )}
-
-                    {/* View Details Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedMeeting(m)}
-                      className="text-xs text-slate-700 gap-1.5"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Details
-                    </Button>
-
-                    {/* Cancel Meeting Button */}
-                    {m.status !== "CANCELLED" &&
-                      (currentUser?.role === "ADMIN" || isOrganizer) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedMeeting(m);
-                            setCancelModalOpen(true);
-                          }}
-                          className="text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2"
-                          title="Cancel Meeting and release reserved items"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+      {/* Floating Bulk Actions Bar (Admin only) */}
+      {isAdmin && (
+        <MeetingBulkActionsBar
+          selectedCount={selectedMeetingIds.size}
+          onClearSelection={() => setSelectedMeetingIds(new Set())}
+          onBulkApprove={handleBulkApprove}
+          onBulkCancel={handleBulkCancel}
+          onBulkExport={handleBulkExport}
+          actionLoading={actionLoading}
+        />
       )}
 
-      {/* FULL MEETING DETAILS MODAL */}
-      <Modal
-        isOpen={!!selectedMeeting && !cancelModalOpen}
-        onClose={() => setSelectedMeeting(null)}
-        title={selectedMeeting?.title || "Meeting Details"}
-        description={selectedMeeting?.purpose || "Full session overview and logistics breakdown."}
-        maxWidth="lg"
-      >
-        {selectedMeeting && (
-          <div className="space-y-6">
-            {/* Header Status */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 uppercase">Status</span>
-                <div className="mt-1">{getStatusBadge(selectedMeeting.status)}</div>
-              </div>
-              <div className="text-right">
-                <span className="text-[11px] font-bold text-slate-500 uppercase">Timing</span>
-                <p className="text-xs font-bold text-slate-800 mt-1 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
-                  {selectedMeeting.startTime.replace("T", " ").slice(0, 16)} &rarr;{" "}
-                  {selectedMeeting.endTime.replace("T", " ").slice(11, 16)}
-                </p>
-              </div>
-            </div>
+      {/* Meeting Details Modal */}
+      <MeetingDetailsModal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        meeting={selectedMeetingForDetail}
+        isAdmin={isAdmin}
+        currentUser={effectiveUser}
+        actionLoading={actionLoading}
+        onApprove={handleApprove}
+        onRequestCancel={handleOpenCancelModal}
+        onRSVP={handleRSVP}
+      />
 
-            {/* Room & Organizer */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase">
-                  Room Facility
-                </span>
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-indigo-600" />
-                  {selectedMeeting.room?.name}
-                </h4>
-                <p className="text-xs text-slate-500">
-                  {selectedMeeting.room?.location} &bull; Capacity: {selectedMeeting.room?.capacity}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 uppercase">
-                  Organizer
-                </span>
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-violet-600" />
-                  {selectedMeeting.organizer?.name}
-                </h4>
-                <p className="text-xs text-slate-500">
-                  {selectedMeeting.organizer?.email} &bull; {selectedMeeting.organizer?.role}
-                </p>
-              </div>
-            </div>
-
-            {/* Attendees & RSVP statuses */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-indigo-600" />
-                Invited Attendees ({selectedMeeting.attendees?.length || 0})
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                {selectedMeeting.attendees?.map((att) => (
-                  <div
-                    key={att.userId}
-                    className="p-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between text-xs shadow-xs"
-                  >
-                    <div>
-                      <p className="font-semibold text-slate-900">{att.name}</p>
-                      <p className="text-[11px] text-slate-500">{att.email}</p>
-                    </div>
-                    <Badge
-                      variant={
-                        att.responseStatus === "ACCEPTED"
-                          ? "confirmed"
-                          : att.responseStatus === "DECLINED"
-                          ? "cancelled"
-                          : "pending"
-                      }
-                    >
-                      {att.responseStatus}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Materials & Logistics */}
-            {selectedMeeting.materials && selectedMeeting.materials.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-cyan-600" />
-                  Requested Equipment & Resources
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedMeeting.materials.map((mat) => (
-                    <span
-                      key={mat.materialId}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-800 font-medium flex items-center gap-2"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                      <strong>{mat.name}</strong> &times; {mat.quantityRequested}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Support Staff Assigned */}
-            {selectedMeeting.staffAssignments && selectedMeeting.staffAssignments.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Wrench className="w-3.5 h-3.5 text-amber-600" />
-                  Assigned Support Personnel
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedMeeting.staffAssignments.map((st) => (
-                    <span
-                      key={st.staffId}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-700 font-medium flex items-center gap-2"
-                    >
-                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      <strong>{st.name}</strong> ({st.role})
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Footer Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              {currentUser?.role === "ADMIN" && selectedMeeting.status === "PENDING" ? (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleApprove(selectedMeeting.meetingId)}
-                  isLoading={actionLoading}
-                  className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-xs gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  Approve Boardroom Reservation
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex items-center gap-2">
-                {selectedMeeting.status !== "CANCELLED" &&
-                  (currentUser?.role === "ADMIN" ||
-                    currentUser?.userId === selectedMeeting.organizer?.userId) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCancelModalOpen(true)}
-                      className="text-xs border-rose-200 text-rose-700 hover:bg-rose-50 gap-1.5"
-                    >
-                      <Ban className="w-3.5 h-3.5" />
-                      Cancel Meeting
-                    </Button>
-                  )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedMeeting(null)}
-                  className="text-xs"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* CANCEL MEETING CONFIRMATION MODAL */}
-      <Modal
+      {/* Meeting Cancel Reason Modal */}
+      <MeetingCancelModal
         isOpen={cancelModalOpen}
         onClose={() => setCancelModalOpen(false)}
-        title="Cancel Meeting Booking"
-        description="Are you sure you want to cancel this meeting? All reserved equipment inventory will be immediately restored."
-        maxWidth="md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5">
-              Cancellation Reason (Optional)
-            </label>
-            <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="e.g., Client rescheduled, emergency conflicts..."
-              className="w-full h-24 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 resize-none shadow-xs"
-            />
-          </div>
+        meeting={meetingToCancel}
+        cancelReason={cancelReason}
+        onReasonChange={setCancelReason}
+        onConfirm={handleConfirmCancel}
+        loading={actionLoading}
+      />
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setCancelModalOpen(false)}
-              className="text-xs"
-            >
-              Back
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleConfirmCancel}
-              isLoading={actionLoading}
-              className="text-xs gap-1.5"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              Confirm Cancellation
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => !actionLoading && setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        isLoading={actionLoading}
+      />
+
+      {/* Pop-up Schedule Meeting Modal */}
+      <BookingModal
+        isOpen={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        currentUser={effectiveUser}
+        onSuccess={() => {
+          loadData();
+        }}
+      />
     </div>
   );
 }

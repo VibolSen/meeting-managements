@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { DashboardView } from "@/components/DashboardView";
 import { ResourcesView } from "@/components/ResourcesView";
 import { MeetingsListView } from "@/components/MeetingsListView";
@@ -13,6 +13,7 @@ import { NavTab } from "@/components/headers/Navigation";
 
 export function AdminDashboard() {
   const { user: authUser } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as NavTab | null;
   const [activeTab, setActiveTab] = useState<NavTab>(tabParam || "dashboard");
@@ -81,22 +82,23 @@ export function AdminDashboard() {
         {activeTab === "meetings" && (
           <MeetingsListView
             currentUser={currentUser}
-            onNavigateToBooking={() => setActiveTab("booking")}
           />
         )}
 
         {activeTab === "calendar" && (
           <RoomScheduleView
             currentUser={currentUser}
-            onBookSlot={() => setActiveTab("booking")}
           />
         )}
 
         {activeTab === "booking" && (
           <BookingWizard
             currentUser={currentUser}
-            onSuccess={() => setActiveTab("meetings")}
-            onCancel={() => setActiveTab("dashboard")}
+            onSuccess={() => router.push("/admin/meetings-approvals")}
+            onCancel={() => {
+              setActiveTab("dashboard");
+              router.push("/admin/dashboard");
+            }}
           />
         )}
       </div>

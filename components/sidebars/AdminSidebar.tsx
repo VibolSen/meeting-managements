@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
   Briefcase,
-  PlusCircle,
   Building,
   Building2,
   Package,
@@ -17,6 +16,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { api, SystemInfo } from "@/lib/api";
 
 export type AdminTab =
   | "dashboard"
@@ -44,9 +44,33 @@ export function AdminSidebar({
   onMobileClose,
 }: AdminSidebarProps = {}) {
   const [collapsed, setCollapsed] = useState(false);
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [loadingSystem, setLoadingSystem] = useState(true);
   const pathname = usePathname();
 
-  // All 7 Core Management Routes + Booking Quick Action (Compact 18px icons)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSystemInfo = async () => {
+      try {
+        const info = await api.system.getInfo();
+        if (isMounted) {
+          setSystemInfo(info);
+          setLoadingSystem(false);
+        }
+      } catch {
+        if (isMounted) {
+          setSystemInfo(null);
+          setLoadingSystem(false);
+        }
+      }
+    };
+    fetchSystemInfo();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // All 8 Core Management Routes (Compact 18px icons)
   const navItems: {
     id: AdminTab;
     label: string;
@@ -100,12 +124,6 @@ export function AdminSidebar({
       label: "Department Management",
       icon: <Building2 className="w-4.5 h-4.5" />,
       href: "/admin/department-management",
-    },
-    {
-      id: "booking",
-      label: "Schedule Meeting",
-      icon: <PlusCircle className="w-4.5 h-4.5" />,
-      href: "/admin/dashboard?tab=booking",
     },
   ];
 
@@ -251,6 +269,50 @@ export function AdminSidebar({
             );
           })}
         </nav>
+
+        {/* Dynamic System Version Footer (Polished SaaS Minimalist Display) */}
+        {collapsed ? (
+          <div className="mt-auto py-3 border-t border-slate-100/80 bg-slate-50/40 flex flex-col items-center justify-center gap-1">
+            {loadingSystem ? (
+              <div className="h-2 w-7 bg-slate-200/80 rounded animate-pulse" />
+            ) : systemInfo?.version ? (
+              <div
+                className="flex flex-col items-center gap-1 cursor-default select-none group"
+                title={`System Operational • Version ${systemInfo.version.startsWith("v") ? systemInfo.version : `v${systemInfo.version}`}`}
+              >
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                <span className="font-mono text-[9px] font-semibold text-slate-500 bg-white border border-slate-200/80 px-1 py-0.5 rounded shadow-2xs">
+                  {systemInfo.version.startsWith("v") ? systemInfo.version : `v${systemInfo.version}`}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-auto px-4 py-3 border-t border-slate-100/90 bg-linear-to-b from-transparent to-slate-50/50">
+            {loadingSystem ? (
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />
+                <div className="h-3.5 w-20 bg-slate-200/70 rounded animate-pulse" />
+              </div>
+            ) : systemInfo?.version ? (
+              <div className="flex items-center gap-2 select-none">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-[11px] font-medium text-slate-500 tracking-tight">
+                  Version
+                </span>
+                <span className="inline-flex items-center font-mono text-[10px] font-semibold text-slate-700 bg-white border border-slate-200/80 rounded-md px-1.5 py-0.5 shadow-2xs">
+                  {systemInfo.version.startsWith("v") ? systemInfo.version : `v${systemInfo.version}`}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        )}
       </aside>
     </>
   );

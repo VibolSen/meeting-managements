@@ -92,6 +92,14 @@ export function BookingWizard({
     });
   }, [initialRoomId, currentUser]);
 
+  // Synchronize state when slot booking initial props change
+  useEffect(() => {
+    if (initialDate) setDate(initialDate);
+    if (initialStartTime) setStartTime(initialStartTime);
+    if (initialEndTime) setEndTime(initialEndTime);
+    if (initialRoomId) setSelectedRoomId(initialRoomId);
+  }, [initialDate, initialStartTime, initialEndTime, initialRoomId]);
+
   // ISO Dates Helper
   const getIsoTimestamps = () => {
     const startIso = `${date}T${startTime}:00`;
@@ -225,8 +233,13 @@ export function BookingWizard({
             Step-by-step reservation with real-time double-booking prevention and logistics support.
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onCancel} className="text-slate-500">
-          <X className="w-4 h-4 mr-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          className="text-slate-500 hover:text-slate-700 h-8"
+          leftIcon={<X className="w-4 h-4" />}
+        >
           Cancel
         </Button>
       </div>
@@ -343,6 +356,8 @@ export function BookingWizard({
           <div className="flex justify-end pt-4 border-t border-slate-100">
             <Button
               variant="primary"
+              size="sm"
+              className="h-8.5 px-4 font-semibold shadow-indigo-600/20"
               onClick={() => {
                 if (validateStep1()) setCurrentStep(2);
               }}
@@ -445,6 +460,8 @@ export function BookingWizard({
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
             <Button
               variant="outline"
+              size="sm"
+              className="h-8.5 px-4 font-semibold"
               onClick={() => setCurrentStep(1)}
               leftIcon={<ChevronLeft className="w-4 h-4" />}
             >
@@ -452,6 +469,8 @@ export function BookingWizard({
             </Button>
             <Button
               variant="primary"
+              size="sm"
+              className="h-8.5 px-4 font-semibold shadow-indigo-600/20"
               onClick={() => {
                 if (validateStep2()) setCurrentStep(3);
               }}
@@ -646,6 +665,8 @@ export function BookingWizard({
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
             <Button
               variant="outline"
+              size="sm"
+              className="h-8.5 px-4 font-semibold"
               onClick={() => setCurrentStep(2)}
               leftIcon={<ChevronLeft className="w-4 h-4" />}
             >
@@ -653,6 +674,8 @@ export function BookingWizard({
             </Button>
             <Button
               variant="primary"
+              size="sm"
+              className="h-8.5 px-4 font-semibold shadow-indigo-600/20"
               onClick={() => setCurrentStep(4)}
               rightIcon={<ChevronRight className="w-4 h-4" />}
             >
@@ -744,6 +767,8 @@ export function BookingWizard({
           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
             <Button
               variant="outline"
+              size="sm"
+              className="h-8.5 px-4 font-semibold"
               onClick={() => setCurrentStep(3)}
               leftIcon={<ChevronLeft className="w-4 h-4" />}
             >
@@ -751,6 +776,8 @@ export function BookingWizard({
             </Button>
             <Button
               variant="success"
+              size="sm"
+              className="h-8.5 px-4 font-semibold shadow-emerald-600/20"
               onClick={handleSubmit}
               isLoading={submitting}
               leftIcon={<Check className="w-4 h-4" />}

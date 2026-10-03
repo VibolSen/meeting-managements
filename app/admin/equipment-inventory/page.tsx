@@ -1,5 +1,5 @@
-import { ResourcesView } from "@/components/ResourcesView";
+import { EquipmentInventoryView } from "@/components/EquipmentInventoryView";
 
 export default function EquipmentInventoryPage() {
-  return <ResourcesView initialTab="materials" />;
+  return <EquipmentInventoryView />;
 }

@@ -142,6 +142,15 @@ export interface DashboardSummary {
   upcomingMeetings: Meeting[];
 }
 
+export interface SystemInfo {
+  appName: string;
+  version: string;
+  builder?: string;
+  environment?: string;
+  status: string;
+  serverTime?: string;
+}
+
 export interface ApiError {
   timestamp?: string;
   status?: number;
@@ -353,5 +362,10 @@ export const api = {
     getByUser: (userId: number) => request<NotificationItem[]>(`/notifications/user/${userId}`),
     updateStatus: (id: number, status: NotificationStatus) =>
       request<void>(`/notifications/${id}/status?status=${status}`, { method: "PATCH" }),
+  },
+
+  // System Version & Metadata
+  system: {
+    getInfo: () => request<SystemInfo>("/system/info"),
   },
 };

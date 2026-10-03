@@ -162,7 +162,7 @@ export function LaunchPage() {
             </Link>
 
             <Link
-              href="/organizer"
+              href="/organizer/dashboard"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-xs hover:-translate-y-0.5 transition-all"
             >
               <Briefcase className="w-4 h-4 text-emerald-600" />
@@ -279,8 +279,8 @@ export function LaunchPage() {
 
               <div className="pt-6">
                 <Link
-                  href="/organizer"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-all"
+                  href="/organizer/dashboard"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all"
                 >
                   <span>Launch Organizer Space</span>
                   <ChevronRight className="w-4 h-4" />
@@ -492,7 +492,7 @@ export function LaunchPage() {
             <Link href="/admin/dashboard" className="hover:text-indigo-600 transition-colors">
               Admin
             </Link>
-            <Link href="/organizer" className="hover:text-indigo-600 transition-colors">
+            <Link href="/organizer/dashboard" className="hover:text-indigo-600 transition-colors">
               Organizer
             </Link>
             <Link href="/portal" className="hover:text-indigo-600 transition-colors">

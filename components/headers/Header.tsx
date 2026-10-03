@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   Bell, 
   Home, 
@@ -30,6 +30,7 @@ export function Header({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -151,6 +152,21 @@ export function Header({
 
               {/* Quick Navigation Links */}
               <div className="py-1">
+                <Link
+                  href={
+                    pathname?.startsWith("/organizer") || user?.role === "ORGANIZER"
+                      ? "/organizer/profile"
+                      : pathname?.startsWith("/admin") || user?.role === "ADMIN"
+                      ? "/admin/profile"
+                      : "/profile"
+                  }
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/60 transition-colors"
+                >
+                  <Home className="w-4 h-4 text-indigo-500" />
+                  My Profile & Roles
+                </Link>
+
                 <Link
                   href="/"
                   onClick={() => setDropdownOpen(false)}

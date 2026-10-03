@@ -1,5 +1,5 @@
-import { ResourcesView } from "@/components/ResourcesView";
+import { StaffRosterView } from "@/components/StaffRosterView";
 
 export default function StaffRosterPage() {
-  return <ResourcesView initialTab="staff" />;
+  return <StaffRosterView />;
 }

@@ -82,7 +82,7 @@ export function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     if (role === "ADMIN") {
       router.push("/admin/dashboard");
     } else if (role === "ORGANIZER") {
-      router.push("/organizer");
+      router.push("/organizer/dashboard");
     } else {
       router.push("/portal");
     }

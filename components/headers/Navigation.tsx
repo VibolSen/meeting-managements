@@ -205,6 +205,14 @@ export function Navigation({
                   {/* Auth Actions in Dropdown */}
                   <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col gap-1">
                     <Link
+                      href={currentUser?.role === "ORGANIZER" ? "/organizer/profile" : currentUser?.role === "ADMIN" ? "/admin/profile" : "/profile"}
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/60 transition-colors"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>My Profile & Roles</span>
+                    </Link>
+                    <Link
                       href="/login"
                       onClick={() => setUserDropdownOpen(false)}
                       className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"

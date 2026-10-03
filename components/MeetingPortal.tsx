@@ -122,7 +122,7 @@ export function MeetingPortal({ initialTab = "dashboard" }: MeetingPortalProps) 
             </Link>
             <span className="text-slate-300">•</span>
             <Link
-              href="/organizer"
+              href="/organizer/dashboard"
               className="text-slate-500 hover:text-slate-800 font-medium"
             >
               Organizer Workspace

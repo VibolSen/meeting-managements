@@ -1,5 +1,5 @@
-import { ResourcesView } from "@/components/ResourcesView";
+import { RoomManagementView } from "@/components/RoomManagementView";
 
 export default function RoomManagementPage() {
-  return <ResourcesView initialTab="rooms" />;
+  return <RoomManagementView />;
 }
