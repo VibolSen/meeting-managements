@@ -42,7 +42,12 @@ export function OrganizerSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loadingSystem, setLoadingSystem] = useState(true);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setPendingPath(null);
+  }, [pathname]);
 
   useEffect(() => {
     let isMounted = true;
@@ -134,12 +139,12 @@ export function OrganizerSidebar({
           }`}
         >
           <Link
-            href="/"
+            href="/organizer/dashboard"
             onClick={onMobileClose}
             className={`flex items-center gap-2.5 overflow-hidden group ${
               collapsed ? "justify-center" : ""
             }`}
-            title="MeetingHub MMS"
+            title="MeetingHub MMS - Organizer Console"
           >
             <div className="w-8.5 h-8.5 rounded-lg bg-white border border-slate-200 shadow-xs flex items-center justify-center p-1.5 shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
               <img
@@ -210,17 +215,25 @@ export function OrganizerSidebar({
           )}
 
           {navItems.map((item) => {
+            const effectivePath = pendingPath || pathname;
             const isCurrentRoute =
-              pathname === item.href ||
+              effectivePath === item.href ||
+              (effectivePath ? effectivePath.startsWith(item.href + "/") : false) ||
               (item.id === "dashboard" &&
-                (pathname === "/organizer" || pathname === "/organizer/dashboard"));
-            const isActive = onTabChange ? activeTab === item.id : isCurrentRoute;
+                (effectivePath === "/organizer" || effectivePath === "/organizer/dashboard"));
+            const isActive = pendingPath
+              ? pendingPath === item.href
+              : onTabChange && activeTab
+              ? activeTab === item.id
+              : isCurrentRoute;
 
             return (
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch={true}
                 onClick={() => {
+                  setPendingPath(item.href);
                   if (onTabChange) {
                     onTabChange(item.id);
                   }
@@ -228,20 +241,20 @@ export function OrganizerSidebar({
                     onMobileClose();
                   }
                 }}
-                className={`flex items-center rounded-xl text-xs font-semibold transition-all select-none ${
+                className={`flex items-center rounded-xl text-xs font-semibold transition-all duration-150 select-none cursor-pointer active:scale-[0.98] group ${
                   collapsed
                     ? "w-9.5 h-9.5 mx-auto justify-center"
                     : "w-full gap-2.5 px-3 py-2"
                 } ${
                   isActive
-                    ? "bg-indigo-600 text-white shadow-xs font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs font-bold shadow-indigo-200"
+                    : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 active:bg-indigo-100"
                 }`}
                 title={collapsed ? item.label : undefined}
               >
                 <span
-                  className={`flex items-center justify-center shrink-0 ${
-                    isActive ? "text-white" : "text-slate-500"
+                  className={`flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                    isActive ? "text-white" : "text-slate-500 group-hover:text-indigo-600"
                   }`}
                 >
                   {item.icon}
@@ -281,7 +294,7 @@ export function OrganizerSidebar({
             ) : null}
           </div>
         ) : (
-          <div className="mt-auto px-4 py-3 border-t border-slate-100/90 bg-linear-to-b from-transparent to-slate-50/50">
+          <div className="mt-auto px-4 py-3 border-t border-slate-100/90 bg-gradient-to-b from-transparent to-slate-50/50">
             {loadingSystem ? (
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />

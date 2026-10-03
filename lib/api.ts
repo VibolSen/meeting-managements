@@ -151,6 +151,47 @@ export interface SystemInfo {
   serverTime?: string;
 }
 
+export type AuditActionType =
+  | "CREATE"
+  | "UPDATE"
+  | "APPROVE"
+  | "CANCEL"
+  | "DELETE"
+  | "ROLE_CHANGE"
+  | "STATUS_CHANGE"
+  | "LOGIN";
+
+export type AuditEntityType =
+  | "MEETING"
+  | "ROOM"
+  | "MATERIAL"
+  | "STAFF"
+  | "USER"
+  | "DEPARTMENT"
+  | "SYSTEM";
+
+export interface AuditLog {
+  logId: number;
+  actorId?: number;
+  actorName: string;
+  actorEmail?: string;
+  actionType: AuditActionType;
+  entityType: AuditEntityType;
+  entityId?: number;
+  entityName?: string;
+  details?: string;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface AuditLogSummary {
+  totalLogs: number;
+  logsToday: number;
+  approvalActions: number;
+  securityActions: number;
+  actionDistribution: Record<string, number>;
+}
+
 export interface ApiError {
   timestamp?: string;
   status?: number;
@@ -180,9 +221,10 @@ export interface AuthResponse {
   user: User;
 }
 
-// ----------------- TOKEN STORAGE HELPERS -----------------
+// ----------------- TOKEN & USER STORAGE HELPERS -----------------
 
 const TOKEN_KEY = "mms_jwt_token";
+const USER_KEY = "mms_user_profile";
 
 export function getStoredToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -195,6 +237,25 @@ export function setStoredToken(token: string | null): void {
     localStorage.setItem(TOKEN_KEY, token);
   } else {
     localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function getStoredUser(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user: User | null): void {
+  if (typeof window === "undefined") return;
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_KEY);
   }
 }
 
@@ -246,6 +307,9 @@ export const api = {
       if (res.token) {
         setStoredToken(res.token);
       }
+      if (res.user) {
+        setStoredUser(res.user);
+      }
       return res;
     },
     register: async (data: RegisterRequest) => {
@@ -256,10 +320,16 @@ export const api = {
       if (res.token) {
         setStoredToken(res.token);
       }
+      if (res.user) {
+        setStoredUser(res.user);
+      }
       return res;
     },
     me: () => request<User>("/auth/me"),
-    logout: () => setStoredToken(null),
+    logout: () => {
+      setStoredToken(null);
+      setStoredUser(null);
+    },
   },
   // Dashboard & Metrics
   dashboard: {
@@ -367,5 +437,52 @@ export const api = {
   // System Version & Metadata
   system: {
     getInfo: () => request<SystemInfo>("/system/info"),
+  },
+
+  // Audit Logs & Security
+  auditLogs: {
+    getAll: (params?: {
+      actionType?: string;
+      entityType?: string;
+      keyword?: string;
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      size?: number;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.actionType) query.append("actionType", params.actionType);
+      if (params?.entityType) query.append("entityType", params.entityType);
+      if (params?.keyword) query.append("keyword", params.keyword);
+      if (params?.startDate) query.append("startDate", params.startDate);
+      if (params?.endDate) query.append("endDate", params.endDate);
+      if (params?.page !== undefined) query.append("page", String(params.page));
+      if (params?.size !== undefined) query.append("size", String(params.size));
+      const queryString = query.toString() ? `?${query.toString()}` : "";
+      return request<{
+        content: AuditLog[];
+        totalElements: number;
+        totalPages: number;
+        number: number;
+      }>(`/audit-logs${queryString}`);
+    },
+    getSummary: () => request<AuditLogSummary>("/audit-logs/summary"),
+    getById: (id: number) => request<AuditLog>(`/audit-logs/${id}`),
+    exportCsvUrl: (params?: {
+      actionType?: string;
+      entityType?: string;
+      keyword?: string;
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.actionType) query.append("actionType", params.actionType);
+      if (params?.entityType) query.append("entityType", params.entityType);
+      if (params?.keyword) query.append("keyword", params.keyword);
+      if (params?.startDate) query.append("startDate", params.startDate);
+      if (params?.endDate) query.append("endDate", params.endDate);
+      const queryString = query.toString() ? `?${query.toString()}` : "";
+      return `${API_BASE}/audit-logs/export${queryString}`;
+    },
   },
 };

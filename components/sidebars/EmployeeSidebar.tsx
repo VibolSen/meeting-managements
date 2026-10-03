@@ -5,44 +5,37 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Calendar,
   CalendarDays,
-  Briefcase,
-  Building,
-  Building2,
-  Package,
-  Users,
-  UserCheck,
+  MailCheck,
+  Bell,
   ChevronLeft,
   ChevronRight,
   X,
 } from "lucide-react";
 import { api, SystemInfo } from "@/lib/api";
 
-export type AdminTab =
+export type EmployeeTab =
   | "dashboard"
-  | "meetings"
-  | "calendar"
-  | "resources"
-  | "rooms"
-  | "equipment"
-  | "staff"
-  | "users"
-  | "departments"
-  | "booking";
+  | "my-schedule"
+  | "my-invitations"
+  | "room-schedule"
+  | "notifications"
+  | "profile";
 
-export interface AdminSidebarProps {
-  activeTab?: AdminTab;
-  onTabChange?: (tab: AdminTab) => void;
+export interface EmployeeSidebarProps {
+  activeTab?: EmployeeTab;
+  onTabChange?: (tab: EmployeeTab) => void;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-export function AdminSidebar({
+export function EmployeeSidebar({
   activeTab = "dashboard",
   onTabChange,
   mobileOpen = false,
   onMobileClose,
-}: AdminSidebarProps = {}) {
+}: EmployeeSidebarProps = {}) {
   const [collapsed, setCollapsed] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loadingSystem, setLoadingSystem] = useState(true);
@@ -75,9 +68,8 @@ export function AdminSidebar({
     };
   }, []);
 
-  // All 8 Core Management Routes (Compact 18px icons)
   const navItems: {
-    id: AdminTab;
+    id: EmployeeTab;
     label: string;
     icon: React.ReactNode;
     href: string;
@@ -86,49 +78,31 @@ export function AdminSidebar({
       id: "dashboard",
       label: "Dashboard Overview",
       icon: <LayoutDashboard className="w-4.5 h-4.5" />,
-      href: "/admin/dashboard",
+      href: "/employee/dashboard",
     },
     {
-      id: "meetings",
-      label: "Meetings & Approvals",
-      icon: <Briefcase className="w-4.5 h-4.5" />,
-      href: "/admin/meetings-approvals",
+      id: "my-schedule",
+      label: "My Schedule & Agenda",
+      icon: <Calendar className="w-4.5 h-4.5" />,
+      href: "/employee/my-schedule",
     },
     {
-      id: "calendar",
-      label: "Master Timeline",
+      id: "my-invitations",
+      label: "Invitations & RSVPs",
+      icon: <MailCheck className="w-4.5 h-4.5" />,
+      href: "/employee/my-invitations",
+    },
+    {
+      id: "room-schedule",
+      label: "Room Schedule",
       icon: <CalendarDays className="w-4.5 h-4.5" />,
-      href: "/admin/master-timeline",
+      href: "/employee/room-schedule",
     },
     {
-      id: "rooms",
-      label: "Room Management",
-      icon: <Building className="w-4.5 h-4.5" />,
-      href: "/admin/room-management",
-    },
-    {
-      id: "equipment",
-      label: "Equipment & Inventory",
-      icon: <Package className="w-4.5 h-4.5" />,
-      href: "/admin/equipment-inventory",
-    },
-    {
-      id: "staff",
-      label: "Staff Roster",
-      icon: <UserCheck className="w-4.5 h-4.5" />,
-      href: "/admin/staff-roster",
-    },
-    {
-      id: "users",
-      label: "User Management",
-      icon: <Users className="w-4.5 h-4.5" />,
-      href: "/admin/user-management",
-    },
-    {
-      id: "departments",
-      label: "Department Management",
-      icon: <Building2 className="w-4.5 h-4.5" />,
-      href: "/admin/department-management",
+      id: "notifications",
+      label: "Notifications",
+      icon: <Bell className="w-4.5 h-4.5" />,
+      href: "/employee/notifications",
     },
   ];
 
@@ -143,7 +117,7 @@ export function AdminSidebar({
         />
       )}
 
-      {/* Sidebar Aside (Compact w-16 collapsed, w-64 expanded with Welcome Banner gradient fill) */}
+      {/* Sidebar Aside (Mirrors Admin exact styling: w-16 collapsed, w-64 expanded) */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-indigo-50/80 via-white to-slate-50 border-r border-slate-200/80 flex flex-col shadow-xl select-none transition-all duration-300 ease-in-out lg:static lg:h-screen lg:z-30 lg:shadow-xs lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -156,12 +130,12 @@ export function AdminSidebar({
           }`}
         >
           <Link
-            href="/admin/dashboard"
+            href="/employee/dashboard"
             onClick={onMobileClose}
             className={`flex items-center gap-2.5 overflow-hidden group ${
               collapsed ? "justify-center" : ""
             }`}
-            title="MeetingHub MMS - Admin Console"
+            title="MeetingHub MMS - Employee Portal"
           >
             <div className="w-8.5 h-8.5 rounded-lg bg-white border border-slate-200 shadow-xs flex items-center justify-center p-1.5 shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
               <img
@@ -176,7 +150,7 @@ export function AdminSidebar({
                   MeetingHub MMS
                 </span>
                 <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-full uppercase tracking-wider">
-                  Admin Console
+                  Employee Portal
                 </span>
               </div>
             )}
@@ -206,7 +180,7 @@ export function AdminSidebar({
           </button>
         </div>
 
-        {/* Desktop Expand Floating Badge (Subtle compact 20px badge on border) */}
+        {/* Desktop Expand Floating Badge on border */}
         {collapsed && (
           <button
             type="button"
@@ -227,7 +201,7 @@ export function AdminSidebar({
         >
           {!collapsed && (
             <p className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-              Management Menu
+              Employee Menu
             </p>
           )}
 
@@ -236,7 +210,8 @@ export function AdminSidebar({
             const isCurrentRoute =
               effectivePath === item.href ||
               (effectivePath ? effectivePath.startsWith(item.href + "/") : false) ||
-              (item.id === "dashboard" && (effectivePath === "/admin" || effectivePath === "/admin/dashboard"));
+              (item.id === "dashboard" &&
+                (effectivePath === "/employee" || effectivePath === "/employee/dashboard"));
             const isActive = pendingPath
               ? pendingPath === item.href
               : onTabChange && activeTab
@@ -283,7 +258,7 @@ export function AdminSidebar({
           })}
         </nav>
 
-        {/* Dynamic System Version Footer (Polished SaaS Minimalist Display) */}
+        {/* Dynamic System Version Footer (Polished SaaS Minimalist Display with emerald pulse dot) */}
         {collapsed ? (
           <div className="mt-auto py-3 border-t border-slate-100/80 bg-slate-50/40 flex flex-col items-center justify-center gap-1">
             {loadingSystem ? (
@@ -331,4 +306,4 @@ export function AdminSidebar({
   );
 }
 
-export default AdminSidebar;
+export default EmployeeSidebar;

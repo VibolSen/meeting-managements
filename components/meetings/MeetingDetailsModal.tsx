@@ -26,11 +26,11 @@ interface MeetingDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   meeting: Meeting | null;
-  isAdmin: boolean;
+  isAdmin?: boolean;
   currentUser?: User | null;
-  actionLoading: boolean;
-  onApprove: (meetingId: number) => void;
-  onRequestCancel: (meeting: Meeting) => void;
+  actionLoading?: boolean;
+  onApprove?: (meetingId: number) => void;
+  onRequestCancel?: (meeting: Meeting) => void;
   onRSVP?: (meetingId: number, status: AttendeeResponseStatus) => void;
 }
 
@@ -38,9 +38,9 @@ export function MeetingDetailsModal({
   isOpen,
   onClose,
   meeting,
-  isAdmin,
+  isAdmin = false,
   currentUser,
-  actionLoading,
+  actionLoading = false,
   onApprove,
   onRequestCancel,
   onRSVP,
@@ -287,7 +287,7 @@ export function MeetingDetailsModal({
         <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div className="flex items-center gap-2">
             {/* Quick Approve Button */}
-            {isAdmin && meeting.status === "PENDING" && (
+            {isAdmin && meeting.status === "PENDING" && onApprove && (
               <Button
                 variant="success"
                 size="sm"
@@ -302,7 +302,8 @@ export function MeetingDetailsModal({
 
             {/* Quick Cancel Button */}
             {(isAdmin || isOrganizer) &&
-              (meeting.status === "PENDING" || meeting.status === "CONFIRMED") && (
+              (meeting.status === "PENDING" || meeting.status === "CONFIRMED") &&
+              onRequestCancel && (
                 <Button
                   variant="outline"
                   size="sm"

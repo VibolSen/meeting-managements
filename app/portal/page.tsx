@@ -1,5 +1,5 @@
-import { MeetingPortal } from "@/components/MeetingPortal";
+import { redirect } from "next/navigation";
 
 export default function PortalPage() {
-  return <MeetingPortal />;
+  redirect("/employee/dashboard");
 }

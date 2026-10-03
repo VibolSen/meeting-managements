@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Header from "@/components/headers/Header";
-import OrganizerSidebar from "@/components/sidebars/OrganizerSidebar";
+import EmployeeSidebar from "@/components/sidebars/EmployeeSidebar";
 import { NotificationsDrawer } from "@/components/NotificationsDrawer";
 import { useAuth } from "@/lib/auth";
 
-export default function OrganizerLayout({
+export default function EmployeeLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -17,8 +17,8 @@ export default function OrganizerLayout({
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans selection:bg-indigo-600 selection:text-white">
-      {/* Organizer Sidebar with responsive mobile drawer support */}
-      <OrganizerSidebar
+      {/* Employee Sidebar with responsive mobile drawer support */}
+      <EmployeeSidebar
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
@@ -26,7 +26,7 @@ export default function OrganizerLayout({
       {/* Main content wrapper */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
-          portalRole="ORGANIZER"
+          portalRole="EMPLOYEE"
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
         />

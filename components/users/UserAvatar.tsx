@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { UserStatus } from "@/lib/api";
 
 interface UserAvatarProps {
@@ -60,15 +62,25 @@ export function UserAvatar({
   className = "",
   showStatusIndicator = false,
 }: UserAvatarProps) {
+  const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const sizeClass = SIZE_MAP[size];
   const gradient = getGradient(name || "User");
   const initials = getInitials(name || "User");
 
-  const hasValidImage = Boolean(avatarUrl && !imageError);
+  // Only render client-loaded images once mounted to prevent SSR hydration mismatch
+  const hasValidImage = Boolean(mounted && avatarUrl && !imageError);
 
   return (
-    <div className={`relative inline-block shrink-0 select-none ${className}`}>
+    <div
+      className={`relative inline-block shrink-0 select-none ${className}`}
+      suppressHydrationWarning
+    >
       <div
         className={`${sizeClass} rounded-xl overflow-hidden flex items-center justify-center font-bold shadow-xs transition-transform ${
           hasValidImage ? "bg-slate-100" : `bg-gradient-to-br ${gradient}`

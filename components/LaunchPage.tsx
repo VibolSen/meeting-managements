@@ -170,11 +170,11 @@ export function LaunchPage() {
             </Link>
 
             <Link
-              href="/portal"
+              href="/employee/dashboard"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-xs hover:-translate-y-0.5 transition-all"
             >
-              <Users className="w-4 h-4 text-violet-600" />
-              <span>General Portal</span>
+              <Users className="w-4 h-4 text-indigo-600" />
+              <span>Employee Portal</span>
             </Link>
           </div>
         </section>
@@ -325,10 +325,10 @@ export function LaunchPage() {
 
               <div className="pt-6">
                 <Link
-                  href="/portal"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 shadow-md shadow-violet-600/20 transition-all"
+                  href="/employee/dashboard"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all"
                 >
-                  <span>Enter General Portal</span>
+                  <span>Enter Employee Portal</span>
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>

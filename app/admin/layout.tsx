@@ -26,6 +26,7 @@ export default function AdminLayout({
       {/* Main content wrapper */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Header
+          portalRole="ADMIN"
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
         />

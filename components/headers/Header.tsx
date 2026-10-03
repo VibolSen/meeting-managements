@@ -5,32 +5,60 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { 
   Bell, 
-  Home, 
-  ExternalLink, 
   LogOut,
   ChevronDown,
   Mail,
   Menu,
+  User as UserIcon,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { api } from "@/lib/api";
+import { api, UserRole } from "@/lib/api";
+import { UserAvatar } from "@/components/users/UserAvatar";
 
 interface HeaderProps {
   title?: string;
+  portalRole?: UserRole;
   onOpenNotifications?: () => void;
   onOpenMobileSidebar?: () => void;
 }
 
 export function Header({
+  title,
+  portalRole,
   onOpenNotifications,
   onOpenMobileSidebar,
 }: HeaderProps = {}) {
-  const { user, logout, loading: authLoading } = useAuth();
+  const { user, logout, loading: authLoading, ensureSession } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Determine effective workspace role from prop or route
+  const effectiveRole: UserRole =
+    portalRole ||
+    (pathname?.startsWith("/organizer")
+      ? "ORGANIZER"
+      : pathname?.startsWith("/employee")
+      ? "EMPLOYEE"
+      : "ADMIN");
+
+  // Ensure authenticated session matches the active workspace role
+  useEffect(() => {
+    let isMounted = true;
+    if (!user || user.role !== effectiveRole) {
+      ensureSession(effectiveRole)
+        .catch(() => {})
+        .finally(() => {
+          if (!isMounted) return;
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [effectiveRole, user?.role]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -71,10 +99,27 @@ export function Header({
     router.push("/login");
   };
 
+  // Profile display name fallback according to active workspace role
+  const displayName =
+    user?.name ||
+    (effectiveRole === "ORGANIZER"
+      ? "Meeting Organizer"
+      : effectiveRole === "EMPLOYEE"
+      ? "Alice Johnson"
+      : "Vibol SEN");
+
+  const displayEmail =
+    user?.email ||
+    (effectiveRole === "ORGANIZER"
+      ? "organizer@meeting.com"
+      : effectiveRole === "EMPLOYEE"
+      ? "alice@meeting.com"
+      : "vibolsen2002@gmail.com");
+
   return (
-    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between shadow-xs shrink-0">
-      {/* Left: Mobile Drawer Trigger (Hidden on Desktop) */}
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between shadow-xs shrink-0 select-none">
+      {/* Left: Mobile Drawer Trigger + Desktop Workspace Indicator */}
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileSidebar}
@@ -84,9 +129,28 @@ export function Header({
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {title ? (
+          <h1 className="text-sm font-bold text-slate-800 tracking-tight hidden sm:block">
+            {title}
+          </h1>
+        ) : (
+          <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-slate-800 font-bold">
+              {effectiveRole === "ADMIN"
+                ? "Admin Console"
+                : effectiveRole === "ORGANIZER"
+                ? "Organizer Workspace"
+                : "Employee Portal"}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-[11px] text-slate-400">Enterprise MMS</span>
+          </div>
+        )}
       </div>
 
-      {/* Right: Notifications & Profile Dropdown */}
+      {/* Right: Notifications & Dynamic Profile Dropdown */}
       <div className="flex items-center gap-3">
         {/* Notifications Bell */}
         <button
@@ -109,23 +173,47 @@ export function Header({
           <button
             type="button"
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 transition-colors shadow-xs cursor-pointer select-none"
+            className="flex items-center gap-2.5 p-1.5 pr-2.5 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 transition-all shadow-xs hover:shadow-sm cursor-pointer select-none group"
             aria-expanded={dropdownOpen}
             aria-haspopup="true"
+            aria-label="User profile and settings"
           >
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
-              {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[120px]">
-                {user?.name || (authLoading ? "Loading..." : "User")}
+            {/* Real Dynamic User Avatar with status dot */}
+            <UserAvatar
+              name={displayName}
+              avatarUrl={user?.avatarUrl}
+              size="sm"
+              showStatusIndicator={true}
+              status={user?.status || "ACTIVE"}
+            />
+
+            {/* User Name & Role Badge (Visible on all desktop and tablet viewports) */}
+            <div className="hidden xs:block text-left">
+              <p className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] sm:max-w-[170px] group-hover:text-indigo-600 transition-colors">
+                {authLoading ? "Loading..." : displayName}
               </p>
-              <p className="text-[10px] font-semibold text-indigo-600 leading-none">
-                {user?.role || "ADMIN"}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider border ${
+                    effectiveRole === "ADMIN"
+                      ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+                      : effectiveRole === "ORGANIZER"
+                      ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                      : "text-violet-700 bg-violet-50 border-violet-200"
+                  }`}
+                >
+                  {user?.role || effectiveRole}
+                </span>
+                {user?.departmentName && (
+                  <span className="hidden md:inline text-[9px] text-slate-400 truncate max-w-[100px]">
+                    • {user.departmentName}
+                  </span>
+                )}
+              </div>
             </div>
+
             <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+              className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform duration-200 ${
                 dropdownOpen ? "rotate-180" : ""
               }`}
             />
@@ -133,68 +221,82 @@ export function Header({
 
           {/* Dropdown Menu */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-200/90 shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-              {/* Profile Details Header */}
-              <div className="px-4 py-3 border-b border-slate-100">
-                <p className="text-xs font-extrabold text-slate-900 truncate">
-                  {user?.name || "System User"}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                  <Mail className="w-3 h-3 shrink-0" />
-                  {user?.email || "No email available"}
-                </p>
-                <div className="mt-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    Role: {user?.role || "ADMIN"}
-                  </span>
+            <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-slate-200/90 shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              {/* Profile Details Header Card */}
+              <div className="px-4 py-3.5 border-b border-slate-100 flex items-center gap-3">
+                <UserAvatar
+                  name={displayName}
+                  avatarUrl={user?.avatarUrl}
+                  size="md"
+                  showStatusIndicator={true}
+                  status={user?.status || "ACTIVE"}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-extrabold text-slate-900 truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                    <Mail className="w-3 h-3 shrink-0" />
+                    {displayEmail}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${
+                        effectiveRole === "ADMIN"
+                          ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+                          : effectiveRole === "ORGANIZER"
+                          ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                          : "text-violet-700 bg-violet-50 border-violet-200"
+                      }`}
+                    >
+                      Role: {user?.role || effectiveRole}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Quick Navigation Links */}
-              <div className="py-1">
+              {/* Primary Profile Actions */}
+              <div className="py-1 space-y-0.5">
                 <Link
                   href={
-                    pathname?.startsWith("/organizer") || user?.role === "ORGANIZER"
+                    effectiveRole === "ORGANIZER"
                       ? "/organizer/profile"
-                      : pathname?.startsWith("/admin") || user?.role === "ADMIN"
-                      ? "/admin/profile"
-                      : "/profile"
+                      : effectiveRole === "EMPLOYEE"
+                      ? "/employee/profile"
+                      : "/admin/profile"
                   }
                   onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/60 transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-800 hover:text-indigo-600 hover:bg-indigo-50/70 transition-colors"
                 >
-                  <Home className="w-4 h-4 text-indigo-500" />
-                  My Profile & Roles
+                  <UserIcon className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>My Profile & Account</span>
                 </Link>
 
                 <Link
-                  href="/"
+                  href={
+                    effectiveRole === "ORGANIZER"
+                      ? "/organizer/settings"
+                      : effectiveRole === "EMPLOYEE"
+                      ? "/employee/settings"
+                      : "/admin/settings"
+                  }
                   onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-slate-800 hover:text-indigo-600 hover:bg-indigo-50/70 transition-colors"
                 >
-                  <Home className="w-4 h-4 text-slate-400" />
-                  Return to Launchpad
-                </Link>
-
-                <Link
-                  href="/portal"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4 text-slate-400" />
-                  General Portal
+                  <Settings className="w-4 h-4 text-slate-500 hover:text-indigo-600 shrink-0 transition-colors" />
+                  <span>Settings</span>
                 </Link>
               </div>
 
               {/* Sign Out Action */}
-              <div className="pt-1 border-t border-slate-100">
+              <div className="pt-1 mt-1 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors text-left cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
-                  Sign Out
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>
@@ -206,3 +308,4 @@ export function Header({
 }
 
 export default Header;
+
