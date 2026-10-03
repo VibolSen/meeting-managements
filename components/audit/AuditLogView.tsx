@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Shield, RefreshCw } from "lucide-react";
 import { api, AuditLog, AuditLogSummary } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { useAuth } from "@/lib/auth";
 import { AuditLogStats } from "./AuditLogStats";
 import { AuditLogFilterBar } from "./AuditLogFilterBar";
 import { AuditLogTable } from "./AuditLogTable";
@@ -16,8 +15,6 @@ interface AuditLogViewProps {
 
 export function AuditLogView({ embedded = false }: AuditLogViewProps = {}) {
   const toast = useToast();
-  const { ensureSession } = useAuth();
-
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [summary, setSummary] = useState<AuditLogSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,19 +81,9 @@ export function AuditLogView({ embedded = false }: AuditLogViewProps = {}) {
   }, [keyword, actionType, entityType, dateRange, page, pageSize]);
 
   useEffect(() => {
-    let isMounted = true;
-    ensureSession("ADMIN")
-      .catch(() => {})
-      .finally(() => {
-        if (isMounted) {
-          fetchSummary();
-          fetchLogs();
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [ensureSession, fetchSummary, fetchLogs]);
+    fetchSummary();
+    fetchLogs();
+  }, [fetchSummary, fetchLogs]);
 
   const handleResetFilters = () => {
     setKeyword("");

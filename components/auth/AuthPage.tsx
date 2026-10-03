@@ -34,8 +34,16 @@ export function AuthPage({ initialMode = "signin" }: AuthPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
+  const isLogout = searchParams.get("logout") === "true";
   const toast = useToast();
-  const { login, register, user: currentUser } = useAuth();
+  const { login, register, logout, user: currentUser } = useAuth();
+
+  // If arriving via sign out, ensure local session is wiped
+  useEffect(() => {
+    if (isLogout) {
+      logout();
+    }
+  }, [isLogout, logout]);
 
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -67,12 +75,12 @@ export function AuthPage({ initialMode = "signin" }: AuthPageProps) {
       .catch(() => setDepartments([]));
   }, []);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (and not logging out)
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !isLogout) {
       handleRedirect(currentUser.role);
     }
-  }, [currentUser]);
+  }, [currentUser, isLogout]);
 
   const handleRedirect = (role: UserRole) => {
     if (returnUrl) {
@@ -84,7 +92,7 @@ export function AuthPage({ initialMode = "signin" }: AuthPageProps) {
     } else if (role === "ORGANIZER") {
       router.push("/organizer/dashboard");
     } else {
-      router.push("/portal");
+      router.push("/employee/dashboard");
     }
   };
 

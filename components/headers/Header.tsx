@@ -13,7 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { api, UserRole } from "@/lib/api";
+import { api, UserRole, getStoredToken } from "@/lib/api";
 import { UserAvatar } from "@/components/users/UserAvatar";
 
 interface HeaderProps {
@@ -29,7 +29,7 @@ export function Header({
   onOpenNotifications,
   onOpenMobileSidebar,
 }: HeaderProps = {}) {
-  const { user, logout, loading: authLoading, ensureSession } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,20 +45,13 @@ export function Header({
       ? "EMPLOYEE"
       : "ADMIN");
 
-  // Ensure authenticated session matches the active workspace role
+  // Route guard: If user is not authenticated and has no token, redirect to /login
   useEffect(() => {
-    let isMounted = true;
-    if (!user || user.role !== effectiveRole) {
-      ensureSession(effectiveRole)
-        .catch(() => {})
-        .finally(() => {
-          if (!isMounted) return;
-        });
+    const token = getStoredToken();
+    if (!authLoading && !user && !token) {
+      router.push("/login");
     }
-    return () => {
-      isMounted = false;
-    };
-  }, [effectiveRole, user?.role]);
+  }, [authLoading, user, router]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -96,7 +89,7 @@ export function Header({
   const handleSignOut = () => {
     setDropdownOpen(false);
     logout();
-    router.push("/login");
+    window.location.href = "/login?logout=true";
   };
 
   // Profile display name fallback according to active workspace role

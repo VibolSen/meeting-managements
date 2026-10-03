@@ -225,7 +225,7 @@ export function Navigation({
                       onClick={() => {
                         api.auth.logout();
                         setUserDropdownOpen(false);
-                        window.location.href = "/login";
+                        window.location.href = "/login?logout=true";
                       }}
                       className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
                     >
