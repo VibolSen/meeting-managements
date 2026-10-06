@@ -40,6 +40,9 @@ export function OrganizerSidebar({
   onMobileClose,
 }: OrganizerSidebarProps = {}) {
   const [collapsed, setCollapsed] = useState(false);
+  const [appName, setAppName] = useState("MeetingHub MMS");
+  const [orgName, setOrgName] = useState("Enterprise Hub");
+  const [logoUrl, setLogoUrl] = useState("/default logo/meeting-time.svg");
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loadingSystem, setLoadingSystem] = useState(true);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
@@ -51,23 +54,33 @@ export function OrganizerSidebar({
 
   useEffect(() => {
     let isMounted = true;
-    const fetchSystemInfo = async () => {
+    const fetchBrandingAndInfo = async () => {
       try {
-        const info = await api.system.getInfo();
-        if (isMounted) {
-          setSystemInfo(info);
-          setLoadingSystem(false);
+        const [info, settings] = await Promise.all([
+          api.system.getInfo().catch(() => null),
+          api.systemSettings.getPublic().catch(() => []),
+        ]);
+        if (!isMounted) return;
+        if (info) setSystemInfo(info);
+        if (Array.isArray(settings)) {
+          const app = settings.find((i) => i.settingKey === "branding.app_name");
+          const org = settings.find((i) => i.settingKey === "branding.organization_name");
+          const logo = settings.find((i) => i.settingKey === "branding.logo_url");
+          if (app?.settingValue) setAppName(app.settingValue);
+          if (org?.settingValue) setOrgName(org.settingValue);
+          if (logo?.settingValue) setLogoUrl(logo.settingValue);
         }
-      } catch {
-        if (isMounted) {
-          setSystemInfo(null);
-          setLoadingSystem(false);
-        }
+      } finally {
+        if (isMounted) setLoadingSystem(false);
       }
     };
-    fetchSystemInfo();
+
+    fetchBrandingAndInfo();
+    const handleSettingsUpdated = () => fetchBrandingAndInfo();
+    window.addEventListener("system-settings-updated", handleSettingsUpdated);
     return () => {
       isMounted = false;
+      window.removeEventListener("system-settings-updated", handleSettingsUpdated);
     };
   }, []);
 
@@ -128,13 +141,13 @@ export function OrganizerSidebar({
 
       {/* Sidebar Aside */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-indigo-50/80 via-white to-slate-50 border-r border-slate-200/80 flex flex-col shadow-xl select-none transition-all duration-300 ease-in-out lg:static lg:h-screen lg:z-30 lg:shadow-xs lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-indigo-50/80 via-white to-slate-50 dark:from-[#0d121f] dark:via-[#0d121f] dark:to-[#0b0f19] border-r border-slate-200/80 dark:border-slate-800 flex flex-col shadow-xl select-none transition-all duration-300 ease-in-out lg:static lg:h-screen lg:z-30 lg:shadow-xs lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-16 lg:w-16" : "w-64 lg:w-64"}`}
       >
         {/* Top Branding Header */}
         <div
-          className={`h-16 flex items-center border-b border-slate-200/80 shrink-0 relative ${
+          className={`h-16 flex items-center border-b border-slate-200/80 dark:border-slate-800 shrink-0 relative ${
             collapsed ? "justify-center px-1" : "justify-between px-3.5"
           }`}
         >
@@ -144,19 +157,19 @@ export function OrganizerSidebar({
             className={`flex items-center gap-2.5 overflow-hidden group ${
               collapsed ? "justify-center" : ""
             }`}
-            title="MeetingHub MMS - Organizer Console"
+            title={`${appName} - Organizer Console`}
           >
             <div className="w-8.5 h-8.5 rounded-lg bg-white border border-slate-200 shadow-xs flex items-center justify-center p-1.5 shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
               <img
-                src="/default logo/meeting-time.svg"
-                alt="Meeting Management System Logo"
+                src={logoUrl || "/default logo/meeting-time.svg"}
+                alt={`${appName} Logo`}
                 className="w-full h-full object-contain"
               />
             </div>
             {!collapsed && (
               <div className="truncate">
                 <span className="font-extrabold text-xs text-slate-900 block truncate">
-                  MeetingHub MMS
+                  {appName}
                 </span>
                 <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-full uppercase tracking-wider">
                   Organizer Console
@@ -294,7 +307,7 @@ export function OrganizerSidebar({
             ) : null}
           </div>
         ) : (
-          <div className="mt-auto px-4 py-3 border-t border-slate-100/90 bg-gradient-to-b from-transparent to-slate-50/50">
+          <div className="mt-auto px-4 py-3 border-t border-slate-100/90 dark:border-slate-800 bg-gradient-to-b from-transparent to-slate-50/50 dark:to-[#0b0f19]/50">
             {loadingSystem ? (
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-200 animate-pulse" />

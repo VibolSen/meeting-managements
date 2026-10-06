@@ -26,13 +26,13 @@ export function MaterialHeader({
   onExportExcel,
 }: MaterialHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-cyan-50/70 via-white to-slate-50 shadow-xs">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-cyan-50/70 via-white to-slate-50 dark:from-slate-900/95 dark:via-[#111827] dark:to-cyan-950/30 shadow-xs">
       <div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="p-2 rounded-xl bg-cyan-100 text-cyan-700">
+          <div className="p-2 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300">
             <Package className="w-5 h-5" />
           </div>
-          <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Materials & Equipment Inventory
           </span>
           <Badge variant="neutral" size="sm" className="font-mono">

@@ -55,13 +55,13 @@ export function StaffDetailsModal({
     >
       <div className="space-y-4">
         {/* Header Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-50/70 via-slate-50 to-white border border-slate-200/80 flex items-start justify-between gap-3">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-50/70 via-slate-50 to-white dark:from-violet-950/40 dark:via-slate-900/80 dark:to-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-xs shrink-0">
               {getInitials(staff.name)}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">{staff.name}</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{staff.name}</h3>
               <div className="inline-flex items-center gap-1.5 mt-1 text-[11px] font-semibold tracking-wider uppercase text-violet-700 bg-violet-100/70 px-2 py-0.5 rounded-md">
                 <Briefcase className="w-3 h-3" />
                 {staff.role}

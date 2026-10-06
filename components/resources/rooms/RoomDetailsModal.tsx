@@ -49,13 +49,13 @@ export function RoomDetailsModal({
     >
       <div className="space-y-4">
         {/* Header Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/70 via-slate-50 to-white border border-slate-200/80 flex items-start justify-between gap-3">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/70 via-slate-50 to-white dark:from-blue-950/40 dark:via-slate-900/80 dark:to-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="p-3 rounded-2xl bg-blue-600 text-white shadow-xs">
               <Building className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">{room.name}</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{room.name}</h3>
               <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 font-medium">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
                 {room.location}

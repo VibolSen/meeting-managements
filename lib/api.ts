@@ -149,6 +149,78 @@ export interface MeetingStaff {
   assignedRole?: string;
 }
 
+export type RecurrenceType = "NONE" | "DAILY" | "WEEKLY" | "BI_WEEKLY" | "MONTHLY";
+
+export interface RecurringSlot {
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+  conflictReason?: string;
+}
+
+export interface RecurringPreviewResponse {
+  totalGenerated: number;
+  clearCount: number;
+  conflictCount: number;
+  slots: RecurringSlot[];
+}
+
+export type ActionItemStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+
+export interface ActionItem {
+  itemId: number;
+  meetingId: number;
+  meetingTitle?: string;
+  assignee?: User;
+  taskDescription: string;
+  dueDate?: string;
+  status: ActionItemStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActionItemCreateRequest {
+  assigneeId?: number;
+  taskDescription: string;
+  dueDate?: string;
+}
+
+export interface MeetingMinutes {
+  minutesId: number;
+  meetingId: number;
+  agenda?: string;
+  summary?: string;
+  keyDecisions?: string;
+  publishedAt?: string;
+  publishedBy?: User;
+}
+
+export interface MeetingMinutesRequest {
+  agenda?: string;
+  summary?: string;
+  keyDecisions?: string;
+  publishedById?: number;
+}
+
+export interface MeetingAttachment {
+  attachmentId: number;
+  meetingId: number;
+  fileName: string;
+  fileType?: string;
+  fileUrl: string;
+  fileSize?: number;
+  uploadedAt: string;
+  uploadedBy?: User;
+}
+
+export interface MeetingAttachmentCreateRequest {
+  fileName: string;
+  fileType?: string;
+  fileUrl: string;
+  fileSize?: number;
+  uploadedById?: number;
+}
+
 export interface Meeting {
   meetingId: number;
   title: string;
@@ -156,13 +228,114 @@ export interface Meeting {
   status: MeetingStatus;
   startTime: string;
   endTime: string;
+  isCheckedIn?: boolean;
+  checkedInAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  seriesId?: number;
+  recurrenceType?: RecurrenceType;
   organizer: User;
   room: Room;
   attendees: MeetingAttendee[];
   materials: MeetingMaterial[];
   staffAssignments: MeetingStaff[];
+}
+
+export type RoomIssueCategory =
+  | "PROJECTOR_DISPLAY"
+  | "VIDEO_CONFERENCE"
+  | "AIR_CONDITIONING"
+  | "LIGHTING"
+  | "CLEANLINESS"
+  | "AUDIO_MIC"
+  | "OTHER";
+
+export type IssuePriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type RoomIssueStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export interface RoomIssue {
+  issueId: number;
+  roomId: number;
+  roomName?: string;
+  reportedById?: number;
+  reportedByName?: string;
+  reporterName?: string;
+  category: RoomIssueCategory;
+  priority: IssuePriority;
+  title: string;
+  description?: string;
+  status: RoomIssueStatus;
+  resolutionNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+}
+
+export interface RoomIssueCreateRequest {
+  roomId?: number;
+  reportedById?: number;
+  reporterName?: string;
+  category: RoomIssueCategory;
+  priority: IssuePriority;
+  title: string;
+  description?: string;
+}
+
+export interface RoomIssueUpdateRequest {
+  status: RoomIssueStatus;
+  resolutionNotes?: string;
+}
+
+export interface RoomDisplayStatus {
+  room: Room;
+  isOccupied: boolean;
+  currentMeeting?: Meeting | null;
+  nextMeeting?: Meeting | null;
+  secondsRemainingInCurrentMeeting?: number | null;
+  minutesUntilNextMeeting?: number | null;
+  currentTime: string;
+  todaySchedule: Meeting[];
+  activeIssues: RoomIssue[];
+}
+
+export interface RoomUtilization {
+  roomId: number;
+  roomName: string;
+  capacity: number;
+  totalMeetings: number;
+  totalHours: number;
+  utilizationPct: number;
+}
+
+export interface DepartmentUsage {
+  departmentId?: number;
+  departmentName: string;
+  totalMeetings: number;
+  totalHours: number;
+  percentage: number;
+}
+
+export interface HeatmapCell {
+  dayOfWeek: number;
+  dayName: string;
+  hour: number;
+  meetingCount: number;
+  intensity: number;
+}
+
+export interface AnalyticsSummary {
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  autoReleasedNoShows: number;
+  totalMeetingHours: number;
+  overallFacilityUtilizationPct: number;
+  cancellationRatePct: number;
+  noShowRatePct: number;
+  roomUtilizations: RoomUtilization[];
+  departmentUsages: DepartmentUsage[];
+  heatmap: HeatmapCell[];
 }
 
 export interface MeetingCreateRequest {
@@ -175,6 +348,15 @@ export interface MeetingCreateRequest {
   attendeeIds?: number[];
   materials?: { materialId: number; quantityRequested: number }[];
   staffAssignments?: { staffId: number; assignedRole?: string }[];
+}
+
+export interface RecurringMeetingCreateRequest extends MeetingCreateRequest {
+  recurrenceType: RecurrenceType;
+  repeatInterval?: number;
+  daysOfWeek?: string;
+  endDate?: string;
+  occurrencesCount?: number;
+  skipConflictedDates?: boolean;
 }
 
 export interface NotificationItem {
@@ -410,6 +592,7 @@ export const api = {
   rooms: {
     getAll: () => request<Room[]>("/rooms"),
     getById: (id: number) => request<Room>(`/rooms/${id}`),
+    getDisplayStatus: (roomId: number) => request<RoomDisplayStatus>(`/rooms/${roomId}/display-status`),
     checkAvailability: (id: number, start: string, end: string) =>
       request<RoomAvailability>(`/rooms/${id}/availability?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
     getAvailable: (start: string, end: string, minCapacity?: number) => {
@@ -437,6 +620,16 @@ export const api = {
     },
     create: (data: MeetingCreateRequest) =>
       request<Meeting>("/meetings", { method: "POST", body: JSON.stringify(data) }),
+    previewRecurring: (data: RecurringMeetingCreateRequest) =>
+      request<RecurringPreviewResponse>("/meetings/recurring/preview", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    createRecurring: (data: RecurringMeetingCreateRequest) =>
+      request<Meeting[]>("/meetings/recurring", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
     update: (id: number, data: Partial<MeetingCreateRequest>) =>
       request<Meeting>(`/meetings/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     approve: (id: number) =>
@@ -445,8 +638,56 @@ export const api = {
       const query = reason ? `?reason=${encodeURIComponent(reason)}` : "";
       return request<Meeting>(`/meetings/${id}/cancel${query}`, { method: "PATCH" });
     },
+    checkIn: (id: number) =>
+      request<Meeting>(`/meetings/${id}/check-in`, { method: "PATCH" }),
+    endEarly: (id: number) =>
+      request<Meeting>(`/meetings/${id}/end-early`, { method: "PATCH" }),
     updateRSVP: (id: number, userId: number, status: AttendeeResponseStatus) =>
       request<void>(`/meetings/${id}/attendee/${userId}/rsvp?status=${status}`, { method: "PATCH" }),
+
+    // Meeting Minutes (MOM)
+    getMinutes: (id: number) => request<MeetingMinutes | null>(`/meetings/${id}/minutes`),
+    saveMinutes: (id: number, data: MeetingMinutesRequest) =>
+      request<MeetingMinutes>(`/meetings/${id}/minutes`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    // Action Items within Meeting
+    getActionItems: (id: number) => request<ActionItem[]>(`/meetings/${id}/actions`),
+    createActionItem: (id: number, data: ActionItemCreateRequest) =>
+      request<ActionItem>(`/meetings/${id}/actions`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    // Attachments within Meeting
+    getAttachments: (id: number) => request<MeetingAttachment[]>(`/meetings/${id}/attachments`),
+    addAttachment: (id: number, data: MeetingAttachmentCreateRequest) =>
+      request<MeetingAttachment>(`/meetings/${id}/attachments`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Action Items Global Management
+  actionItems: {
+    getUserItems: (userId: number, status?: ActionItemStatus) =>
+      request<ActionItem[]>(
+        `/actions/user/${userId}${status ? `?status=${encodeURIComponent(status)}` : ""}`
+      ),
+    updateStatus: (itemId: number, status: ActionItemStatus) =>
+      request<ActionItem>(`/actions/${itemId}/status?status=${encodeURIComponent(status)}`, {
+        method: "PATCH",
+      }),
+    delete: (itemId: number) =>
+      request<void>(`/actions/${itemId}`, { method: "DELETE" }),
+  },
+
+  // Meeting Attachments Global Operations
+  attachments: {
+    delete: (attachmentId: number) =>
+      request<void>(`/attachments/${attachmentId}`, { method: "DELETE" }),
   },
 
   // Materials & Equipment
@@ -611,4 +852,32 @@ export const api = {
         body: JSON.stringify(payload),
       }),
   },
+
+  // Facility & Room Issues
+  issues: {
+    getForRoom: (roomId: number) => request<RoomIssue[]>(`/rooms/${roomId}/issues`),
+    report: (roomId: number, data: RoomIssueCreateRequest, userId?: number) =>
+      request<RoomIssue>(`/rooms/${roomId}/issues${userId ? `?userId=${userId}` : ""}`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    getAll: () => request<RoomIssue[]>("/issues"),
+    updateStatus: (issueId: number, data: RoomIssueUpdateRequest) =>
+      request<RoomIssue>(`/issues/${issueId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Space Intelligence & Utilization Analytics
+  analytics: {
+    getSummary: (start?: string, end?: string) => {
+      let query = "";
+      if (start && end) {
+        query = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+      }
+      return request<AnalyticsSummary>(`/analytics${query}`);
+    },
+  },
 };
+

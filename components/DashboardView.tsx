@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, LayoutDashboard, BarChart3, CheckSquare } from "lucide-react";
 import { api, DashboardSummary, User, Meeting } from "@/lib/api";
 import { MeetingDetailsModal } from "@/components/meetings/MeetingDetailsModal";
 import { BookingModal } from "@/components/BookingModal";
@@ -11,6 +11,8 @@ import {
   DashboardKpiGrid,
   UpcomingMeetingsList,
   DashboardActionCenter,
+  FacilityAnalyticsView,
+  MyActionItemsWidget,
 } from "@/components/dashboard";
 
 interface DashboardViewProps {
@@ -23,6 +25,8 @@ export function DashboardView({ currentUser, onNavigate }: DashboardViewProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "analytics" | "actions">("overview");
 
   // In-place Meeting Details Inspection Modal
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -119,38 +123,94 @@ export function DashboardView({ currentUser, onNavigate }: DashboardViewProps) {
         onScheduleMeeting={handleScheduleMeeting}
       />
 
-      {/* 2. Interactive KPI Metrics Grid */}
-      <DashboardKpiGrid
-        summary={summary}
-        loading={loading}
-        onNavigate={handleNavigate}
-      />
+      {/* 2. Mode Selector: Operations vs Space Intelligence vs Action Items */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setDashboardTab("overview")}
+          className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            dashboardTab === "overview"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          <span>Operations Overview</span>
+        </button>
 
-      {/* 3. Main Operational Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4 items-start">
-        {/* Left Column (2 Cols): 7-Day Upcoming Meetings Schedule */}
-        <div className="lg:col-span-2">
-          <UpcomingMeetingsList
-            meetings={summary?.upcomingMeetings || []}
-            loading={loading}
-            onViewMeeting={(meeting) => {
-              setSelectedMeeting(meeting);
-              setDetailsModalOpen(true);
-            }}
-            onViewAllMeetings={handleViewAllMeetings}
-            onScheduleMeeting={handleScheduleMeeting}
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => setDashboardTab("analytics")}
+          className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            dashboardTab === "analytics"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Facility Utilization & Heatmap</span>
+        </button>
 
-        {/* Right Column (1 Col): Action Center & Health Gauges */}
-        <div className="lg:col-span-1">
-          <DashboardActionCenter
+        <button
+          type="button"
+          onClick={() => setDashboardTab("actions")}
+          className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            dashboardTab === "actions"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <CheckSquare className="w-3.5 h-3.5" />
+          <span>My Action Items</span>
+        </button>
+      </div>
+
+      {dashboardTab === "overview" && (
+        <>
+          {/* 3. Interactive KPI Metrics Grid */}
+          <DashboardKpiGrid
             summary={summary}
             loading={loading}
-            onReviewApprovals={handleReviewApprovals}
+            onNavigate={handleNavigate}
           />
-        </div>
-      </div>
+
+          {/* 4. Main Operational Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4 items-start">
+            {/* Left Column (2 Cols): 7-Day Upcoming Meetings Schedule */}
+            <div className="lg:col-span-2">
+              <UpcomingMeetingsList
+                meetings={summary?.upcomingMeetings || []}
+                loading={loading}
+                onViewMeeting={(meeting) => {
+                  setSelectedMeeting(meeting);
+                  setDetailsModalOpen(true);
+                }}
+                onViewAllMeetings={handleViewAllMeetings}
+                onScheduleMeeting={handleScheduleMeeting}
+              />
+            </div>
+
+            {/* Right Column (1 Col): Action Center & Health Gauges */}
+            <div className="lg:col-span-1">
+              <DashboardActionCenter
+                summary={summary}
+                loading={loading}
+                onReviewApprovals={handleReviewApprovals}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {dashboardTab === "analytics" && <FacilityAnalyticsView />}
+
+      {dashboardTab === "actions" && (
+        <MyActionItemsWidget
+          onSelectMeetingId={(meetingId) =>
+            handleNavigate(`/admin/meetings-approvals?meetingId=${meetingId}`)
+          }
+        />
+      )}
 
       {/* In-Place Meeting Details & Fast Approval Modal */}
       <MeetingDetailsModal

@@ -27,39 +27,48 @@ export function Badge({
 }: BadgeProps) {
   const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
     confirmed: {
-      container: "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold",
+      container:
+        "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60 font-semibold",
       dot: "bg-emerald-500",
     },
     available: {
-      container: "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold",
+      container:
+        "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60 font-semibold",
       dot: "bg-emerald-500 pulse-dot-available",
     },
     active: {
-      container: "bg-emerald-50 text-emerald-700 border-emerald-200/80 font-semibold",
+      container:
+        "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60 font-semibold",
       dot: "bg-emerald-500",
     },
     pending: {
-      container: "bg-amber-50 text-amber-700 border-amber-200/80 font-semibold",
+      container:
+        "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60 font-semibold",
       dot: "bg-amber-500",
     },
     maintenance: {
-      container: "bg-amber-50 text-amber-700 border-amber-200/80 font-semibold",
+      container:
+        "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60 font-semibold",
       dot: "bg-amber-500",
     },
     conflict: {
-      container: "bg-rose-50 text-rose-700 border-rose-200/80 font-semibold",
+      container:
+        "bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60 font-semibold",
       dot: "bg-rose-500 pulse-dot-conflict",
     },
     cancelled: {
-      container: "bg-rose-50 text-rose-700 border-rose-200/80 font-semibold",
+      container:
+        "bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/60 font-semibold",
       dot: "bg-rose-500",
     },
     completed: {
-      container: "bg-indigo-50 text-indigo-700 border-indigo-200/80 font-semibold",
+      container:
+        "bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800/60 font-semibold",
       dot: "bg-indigo-500",
     },
     neutral: {
-      container: "bg-slate-100 text-slate-700 border-slate-200 font-medium",
+      container:
+        "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-medium",
       dot: "bg-slate-400",
     },
   };

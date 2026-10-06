@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --background: #f8fafc;
@@ -22,6 +24,28 @@
     --input: #e2e8f0;
     --ring: #6366f1;
   }
+
+  .dark {
+    --background: #0b0f19;
+    --foreground: #f8fafc;
+    --card: #111827;
+    --card-foreground: #f8fafc;
+    --popover: #111827;
+    --popover-foreground: #f8fafc;
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --secondary: #1f2937;
+    --secondary-foreground: #f1f5f9;
+    --muted: #1f2937;
+    --muted-foreground: #9ca3af;
+    --accent: #1e1b4b;
+    --accent-foreground: #c7d2fe;
+    --destructive: #f43f5e;
+    --destructive-foreground: #ffffff;
+    --border: #1f2937;
+    --input: #1f2937;
+    --ring: #818cf8;
+  }
 }
 
 body {
@@ -29,6 +53,7 @@ body {
   color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Glassmorphism & Surface Utilities - Clean Light Theme */
@@ -68,6 +93,314 @@ body {
   background: #ffffff;
 }
 
+/* ============================================================ */
+/* Comprehensive Dark Theme System Adapters                     */
+/* ============================================================ */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Dark Glassmorphism Surfaces */
+html.dark .glass-panel {
+  background: rgba(17, 24, 39, 0.85) !important;
+  border-color: rgba(55, 65, 81, 0.6) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .glass-card {
+  background: #111827 !important;
+  border-color: #1f2937 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .glass-card:hover {
+  background: #162032 !important;
+  border-color: #4338ca !important;
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark .glass-input {
+  background: #111827 !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+html.dark .glass-input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+  background: #111827 !important;
+}
+
+/* Background & Surface Wildcard Adapters */
+html.dark [class*="bg-white"],
+html.dark .bg-white {
+  background-color: #111827 !important;
+}
+
+html.dark [class*="bg-slate-50"],
+html.dark .bg-slate-50 {
+  background-color: #0b0f19 !important;
+}
+
+html.dark [class*="bg-slate-100"],
+html.dark .bg-slate-100 {
+  background-color: #1f2937 !important;
+}
+
+html.dark [class*="bg-slate-200"],
+html.dark .bg-slate-200 {
+  background-color: #374151 !important;
+}
+
+/* Gradients & Cards in Dark Mode */
+html.dark [class*="via-white"],
+html.dark [class*="via-slate-50"] {
+  background-image: linear-gradient(to right, rgba(30, 41, 59, 0.7), #111827, rgba(15, 23, 42, 0.95)) !important;
+}
+
+html.dark [class*="from-white"][class*="to-indigo-50"] {
+  background-image: linear-gradient(to bottom right, #111827, rgba(99, 102, 241, 0.2)) !important;
+}
+
+html.dark [class*="from-white"][class*="to-blue-50"] {
+  background-image: linear-gradient(to bottom right, #111827, rgba(59, 130, 246, 0.2)) !important;
+}
+
+html.dark [class*="from-white"][class*="to-emerald-50"] {
+  background-image: linear-gradient(to bottom right, #111827, rgba(16, 185, 129, 0.2)) !important;
+}
+
+html.dark [class*="from-white"][class*="to-rose-50"] {
+  background-image: linear-gradient(to bottom right, #111827, rgba(244, 63, 94, 0.2)) !important;
+}
+
+html.dark [class*="from-violet-50"][class*="to-white"] {
+  background-image: linear-gradient(to bottom right, rgba(139, 92, 246, 0.2), #111827) !important;
+}
+
+html.dark [class*="from-blue-50"][class*="to-white"] {
+  background-image: linear-gradient(to bottom right, rgba(59, 130, 246, 0.2), #111827) !important;
+}
+
+html.dark [class*="from-cyan-50"][class*="to-white"] {
+  background-image: linear-gradient(to bottom right, rgba(6, 182, 212, 0.2), #111827) !important;
+}
+
+html.dark [class*="from-sky-50"][class*="to-white"] {
+  background-image: linear-gradient(to right, rgba(14, 165, 233, 0.2), #111827) !important;
+}
+
+html.dark [class*="bg-gradient"][class*="from-white"],
+html.dark [class*="bg-linear"][class*="from-white"] {
+  background-image: linear-gradient(to bottom right, #111827, rgba(30, 41, 59, 0.5)) !important;
+}
+
+html.dark [class*="bg-gradient-to-r"][class*="to-slate-50"] {
+  background-image: linear-gradient(to right, rgba(30, 41, 59, 0.7), #111827, rgba(15, 23, 42, 0.95)) !important;
+}
+
+/* Sidebar & Navigation Adapters */
+html.dark aside,
+html.dark aside[class*="bg-gradient"],
+html.dark aside .bg-gradient-to-b {
+  background-image: none !important;
+  background-color: #0d121f !important;
+  border-color: #1f2937 !important;
+}
+
+html.dark header {
+  background-color: rgba(13, 18, 31, 0.9) !important;
+  border-color: #1f2937 !important;
+}
+
+/* Typography Wildcard Adapters */
+html.dark [class*="text-slate-900"],
+html.dark .text-slate-900 {
+  color: #f9fafb !important;
+}
+
+html.dark [class*="text-slate-800"],
+html.dark .text-slate-800 {
+  color: #f3f4f6 !important;
+}
+
+html.dark [class*="text-slate-700"],
+html.dark .text-slate-700 {
+  color: #e5e7eb !important;
+}
+
+html.dark [class*="text-slate-600"],
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark [class*="text-slate-500"],
+html.dark .text-slate-500 {
+  color: #9ca3af !important;
+}
+
+html.dark [class*="text-slate-400"],
+html.dark .text-slate-400 {
+  color: #6b7280 !important;
+}
+
+/* Border Wildcard Adapters */
+html.dark [class*="border-slate-100"],
+html.dark [class*="border-slate-200"],
+html.dark [class*="border-slate-300"],
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: #1f2937 !important;
+}
+
+/* Pastel Badges & Tag Overrides */
+html.dark [class*="bg-indigo-50"] {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+html.dark [class*="bg-amber-50"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+html.dark [class*="bg-emerald-50"] {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark [class*="bg-rose-50"] {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+html.dark [class*="bg-blue-50"] {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+html.dark [class*="bg-cyan-50"] {
+  background-color: rgba(6, 182, 212, 0.15) !important;
+  color: #67e8f9 !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+}
+
+html.dark [class*="bg-violet-50"] {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+html.dark [class*="bg-purple-50"] {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+/* High Contrast Colored Text on Dark Surfaces */
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #fde68a !important;
+}
+
+html.dark .text-indigo-800,
+html.dark .text-indigo-700 {
+  color: #c7d2fe !important;
+}
+
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #a7f3d0 !important;
+}
+
+html.dark .text-rose-800,
+html.dark .text-rose-700 {
+  color: #fecdd3 !important;
+}
+
+html.dark .text-cyan-800,
+html.dark .text-cyan-700 {
+  color: #a5f3fc !important;
+}
+
+html.dark .text-violet-800,
+html.dark .text-violet-700 {
+  color: #ddd6fe !important;
+}
+
+html.dark .text-blue-800,
+html.dark .text-blue-700 {
+  color: #bfdbfe !important;
+}
+
+/* Hover States on Dark Surfaces */
+html.dark [class*="hover:bg-white"]:hover {
+  background-color: #1e293b !important;
+}
+
+html.dark [class*="hover:bg-slate-50"]:hover {
+  background-color: #1e293b !important;
+}
+
+html.dark [class*="hover:bg-slate-100"]:hover {
+  background-color: #1e293b !important;
+}
+
+/* Form Inputs, Selects, & Textareas */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+html.dark select option {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+/* Dialogs, Menus & Dropdowns */
+html.dark [role="dialog"],
+html.dark [role="menu"],
+html.dark [role="listbox"],
+html.dark .dropdown-menu {
+  background-color: #111827 !important;
+  border-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+/* Tables in Dark Mode */
+html.dark table thead th {
+  background-color: #1f2937 !important;
+  color: #d1d5db !important;
+  border-color: #374151 !important;
+}
+
+html.dark table tbody tr {
+  border-color: #1f2937 !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(31, 41, 55, 0.6) !important;
+}
+
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -85,6 +418,18 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0b0f19;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
 }
 
 /* Pulse animation for live room & conflict indicators */

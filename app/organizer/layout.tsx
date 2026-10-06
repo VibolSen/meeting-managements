@@ -16,7 +16,7 @@ export default function OrganizerLayout({
   const { user } = useAuth();
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="flex h-screen bg-slate-50 dark:bg-[#0b0f19] overflow-hidden font-sans selection:bg-indigo-600 selection:text-white transition-colors duration-200">
       {/* Organizer Sidebar with responsive mobile drawer support */}
       <OrganizerSidebar
         mobileOpen={mobileSidebarOpen}
@@ -30,7 +30,7 @@ export default function OrganizerLayout({
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5 bg-slate-50/50">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-5 bg-slate-50/50 dark:bg-[#0b0f19]">
           <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>

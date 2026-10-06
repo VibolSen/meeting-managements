@@ -26,13 +26,13 @@ export function StaffHeader({
   onExportExcel,
 }: StaffHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-violet-50/70 via-white to-slate-50 shadow-xs">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-violet-50/70 via-white to-slate-50 dark:from-slate-900/95 dark:via-[#111827] dark:to-violet-950/30 shadow-xs">
       <div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="p-2 rounded-xl bg-violet-100 text-violet-700">
+          <div className="p-2 rounded-xl bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
             <UserCheck className="w-5 h-5" />
           </div>
-          <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             Support Staff & Logistics Roster
           </span>
           <Badge variant="neutral" size="sm" className="font-mono">

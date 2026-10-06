@@ -127,28 +127,28 @@ export function OrganizerDashboardView({ initialUser }: OrganizerDashboardViewPr
       )}
 
       {/* Welcome Header (Unified with Admin DashboardHeader Design) */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-indigo-50/80 via-white to-slate-50 p-4 sm:p-5 shadow-xs">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-gradient-to-r from-indigo-50/80 via-white to-slate-50 dark:from-slate-900/95 dark:via-[#111827] dark:to-slate-900/90 p-4 sm:p-5 shadow-xs">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-semibold">
-                <Sparkles className="w-3 h-3 text-indigo-600" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold">
+                <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                 <span>Organizer Command Center</span>
               </span>
               <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
                 •
               </span>
-              <span className="text-[11px] text-slate-500 font-medium">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                 {currentDateStr}
               </span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                 Welcome back, {currentUser?.name || "Organizer"}
               </h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 text-slate-700 border border-slate-200">
-                <ShieldCheck className="w-3 h-3 text-indigo-600" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <ShieldCheck className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                 {currentUser?.role || "ORGANIZER"}
               </span>
             </div>

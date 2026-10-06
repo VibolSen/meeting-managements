@@ -250,14 +250,14 @@ export function AlertTemplateEditor() {
   return (
     <div className="space-y-6">
       {/* Bot Status Banner */}
-      <div className="p-4 rounded-2xl border border-sky-200/80 bg-linear-to-r from-sky-50/70 via-indigo-50/50 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+      <div className="p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-linear-to-r from-sky-50/70 via-indigo-50/50 to-white dark:from-sky-950/40 dark:via-indigo-950/30 dark:to-slate-900/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
             <Send className="w-5 h-5 -rotate-12 translate-x-0.5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-xs font-bold text-slate-900">Telegram Bot Alert Engine</h4>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Telegram Bot Alert Engine</h4>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Active

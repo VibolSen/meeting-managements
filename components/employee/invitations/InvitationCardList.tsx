@@ -4,6 +4,7 @@ import React from "react";
 import { Meeting, User, AttendeeResponseStatus } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CalendarSyncDropdown } from "@/components/meetings/CalendarSyncDropdown";
 import {
   Calendar,
   Clock,
@@ -169,15 +170,24 @@ export function InvitationCardList({
 
             {/* Bottom Actions Bar */}
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onSelectMeeting(meeting)}
-                className="h-8 text-xs px-2.5 bg-white"
-                leftIcon={<Eye className="w-3.5 h-3.5" />}
-              >
-                Inspect
-              </Button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSelectMeeting(meeting)}
+                  className="h-8 text-xs px-2.5 bg-white"
+                  leftIcon={<Eye className="w-3.5 h-3.5" />}
+                >
+                  Inspect
+                </Button>
+                {rsvpStatus === "ACCEPTED" && (
+                  <CalendarSyncDropdown
+                    meeting={meeting}
+                    locationName={meeting.room?.name}
+                    size="sm"
+                  />
+                )}
+              </div>
 
               <div className="flex items-center gap-1.5">
                 <button

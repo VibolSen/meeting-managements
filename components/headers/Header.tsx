@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { api, UserRole, getStoredToken } from "@/lib/api";
 import { UserAvatar } from "@/components/users/UserAvatar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface HeaderProps {
   title?: string;
@@ -186,6 +187,9 @@ export function Header({
 
       {/* Right: Notifications & Dynamic Profile Dropdown */}
       <div className="flex items-center gap-3">
+        {/* Dark/Light Theme Toggle */}
+        <ThemeToggle />
+
         {/* Notifications Bell */}
         <button
           type="button"

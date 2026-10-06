@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, NotificationItem, Meeting } from "@/lib/api";
 import { MeetingDetailsModal } from "@/components/meetings/MeetingDetailsModal";
+import { CalendarSyncDropdown } from "@/components/meetings/CalendarSyncDropdown";
 import { useAuth } from "@/lib/auth";
 
 interface NotificationDetailModalProps {
@@ -283,17 +284,23 @@ export function NotificationDetailModal({
                       </div>
                     </div>
 
-                    <div className="pt-1">
+                    <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => setFullMeetingModalOpen(true)}
-                        className="w-full justify-center gap-1.5 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                        className="flex-1 justify-center gap-1.5 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        Inspect Complete Meeting Schedule & Details
+                        Inspect Details
                       </Button>
+                      <CalendarSyncDropdown
+                        meeting={meeting}
+                        locationName={meeting.room?.name}
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      />
                     </div>
                   </>
                 ) : (

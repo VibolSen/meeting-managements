@@ -243,16 +243,16 @@ export function NotificationSettingsTab({
       </div>
 
       {/* ===================== TELEGRAM BOT INTEGRATION CARD ===================== */}
-      <div className="rounded-2xl border border-sky-200/90 bg-linear-to-br from-white via-sky-50/20 to-indigo-50/20 shadow-xs overflow-hidden">
+      <div className="rounded-2xl border border-sky-200/90 dark:border-slate-800 bg-linear-to-br from-white via-sky-50/20 to-indigo-50/20 dark:from-slate-900/90 dark:via-[#111827] dark:to-slate-900/90 shadow-xs overflow-hidden">
         {/* Telegram Card Header */}
-        <div className="px-5 py-4 border-b border-sky-100/80 bg-white/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="px-5 py-4 border-b border-sky-100/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <Send className="w-4 h-4 -rotate-12 translate-x-0.5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-900">Telegram Bot Notifications</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">Telegram Bot Notifications</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800">
                   Multi-Channel
                 </span>

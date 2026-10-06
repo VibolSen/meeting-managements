@@ -344,13 +344,13 @@ export function SettingsView({ role }: SettingsViewProps) {
           </nav>
 
           {/* Productivity Tip Box */}
-          <div className="hidden md:flex mt-6 p-4 rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50/60 to-purple-50/40 items-start gap-3">
-            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+          <div className="hidden md:flex mt-6 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-linear-to-br from-indigo-50/60 to-purple-50/40 dark:from-indigo-950/40 dark:to-purple-950/30 items-start gap-3">
+            <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-900">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
                 Live Dynamic Governance
               </span>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Settings update directly in MySQL and enforce real-time business logic across all calendars, bookings, and alerts.
               </p>
             </div>

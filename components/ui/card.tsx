@@ -11,8 +11,8 @@ export function Card({
 
   return (
     <div
-      className={`rounded-xl sm:rounded-2xl border ${
-        hoverEffect ? "glass-card" : "glass-panel"
+      className={`rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#111827] text-slate-900 dark:text-slate-100 shadow-xs ${
+        hoverEffect ? "glass-card hover:border-indigo-300 dark:hover:border-indigo-600" : "glass-panel"
       } ${hasPadding ? "" : "p-4"} ${className}`}
       {...props}
     >
@@ -40,7 +40,7 @@ export function CardTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`text-lg font-semibold tracking-tight text-slate-900 ${className}`}
+      className={`text-lg font-semibold tracking-tight text-slate-900 dark:text-white ${className}`}
       {...props}
     >
       {children}
@@ -54,7 +54,7 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={`text-sm text-slate-500 ${className}`} {...props}>
+    <p className={`text-sm text-slate-500 dark:text-slate-400 ${className}`} {...props}>
       {children}
     </p>
   );
@@ -78,7 +78,7 @@ export function CardFooter({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`flex items-center pt-4 border-t border-slate-100 ${className}`} {...props}>
+    <div className={`flex items-center pt-4 border-t border-slate-100 dark:border-slate-800 ${className}`} {...props}>
       {children}
     </div>
   );

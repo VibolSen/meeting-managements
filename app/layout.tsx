@@ -32,15 +32,33 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('mms-theme');
+                  if (saved === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         suppressHydrationWarning
-        className="min-h-full flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-indigo-600 selection:text-white relative"
+        className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-[#0b0f19] dark:text-slate-100 antialiased selection:bg-indigo-600 selection:text-white relative transition-colors duration-200"
       >
         {/* Ambient background subtle pastel glow */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div className="absolute -top-40 -left-40 w-[30rem] h-[30rem] bg-indigo-200/40 rounded-full blur-[128px]" />
-          <div className="absolute top-1/3 -right-40 w-[28rem] h-[28rem] bg-violet-200/30 rounded-full blur-[128px]" />
-          <div className="absolute -bottom-40 left-1/3 w-[30rem] h-[30rem] bg-sky-200/30 rounded-full blur-[128px]" />
+          <div className="absolute -top-40 -left-40 w-[30rem] h-[30rem] bg-indigo-200/40 dark:bg-indigo-950/20 rounded-full blur-[128px]" />
+          <div className="absolute top-1/3 -right-40 w-[28rem] h-[28rem] bg-violet-200/30 dark:bg-violet-950/20 rounded-full blur-[128px]" />
+          <div className="absolute -bottom-40 left-1/3 w-[30rem] h-[30rem] bg-sky-200/30 dark:bg-sky-950/20 rounded-full blur-[128px]" />
         </div>
 
         <ToastProvider>

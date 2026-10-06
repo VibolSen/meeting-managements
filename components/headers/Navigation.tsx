@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { User, api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export type NavTab = "dashboard" | "booking" | "calendar" | "meetings" | "resources";
 
@@ -149,6 +150,9 @@ export function Navigation({
 
         {/* Right Actions: Notifications & User Switcher */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Notification Bell */}
           <button
             onClick={onOpenNotifications}

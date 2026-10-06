@@ -12,6 +12,7 @@ import {
   Wrench,
   CheckCircle2,
   Inbox,
+  Tv,
 } from "lucide-react";
 import { Room } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -196,6 +197,17 @@ export function RoomTable({
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </Button>
+
+                      {/* Wall Tablet Kiosk Display */}
+                      <a
+                        href={`/room-display/${room.roomId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors inline-flex items-center justify-center cursor-pointer"
+                        title="Launch Wall Tablet Display Kiosk"
+                      >
+                        <Tv className="w-3.5 h-3.5" />
+                      </a>
 
                       {isAdmin && (
                         <>
