@@ -1,9 +1,9 @@
-import React from "react";
-import { Users, Mail, Building, Trash2, Pencil, Eye, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Users, Mail, Building, Trash2, Pencil, Eye, ShieldAlert, ShieldCheck, CalendarCheck, Lock, Briefcase, Phone, Send, Calendar } from "lucide-react";
 import { User, Department } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { UserRoleBadge } from "./UserRoleBadge";
 import { UserStatusBadge } from "./UserStatusBadge";
+import { BookingAccessBadge } from "./BookingAccessBadge";
 import { UserAvatar } from "./UserAvatar";
 
 interface UserCardGridProps {
@@ -19,6 +19,7 @@ interface UserCardGridProps {
   onEditUser: (user: User) => void;
   onDeleteUser: (userId: number, userName: string) => void;
   onToggleStatus?: (user: User) => void;
+  onToggleBookingAccess?: (user: User) => void;
 }
 
 export function UserCardGrid({
@@ -34,6 +35,7 @@ export function UserCardGrid({
   onEditUser,
   onDeleteUser,
   onToggleStatus,
+  onToggleBookingAccess,
 }: UserCardGridProps) {
   if (loading) {
     return (
@@ -88,6 +90,11 @@ export function UserCardGrid({
                 </span>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                <BookingAccessBadge
+                  access={u.bookingAccess}
+                  interactive={isAdmin}
+                  onToggle={() => onToggleBookingAccess?.(u)}
+                />
                 <UserStatusBadge
                   status={u.status}
                   interactive={isAdmin && !isSelf}
@@ -139,10 +146,35 @@ export function UserCardGrid({
                   <span className="truncate">{u.email}</span>
                 </p>
 
-                <p className="text-xs text-slate-600 flex items-center gap-1 mt-1 font-medium">
+                {u.jobTitle && (
+                  <p className="text-xs text-slate-700 flex items-center gap-1.5 mt-1 font-medium truncate" title={u.jobTitle}>
+                    <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{u.jobTitle}</span>
+                  </p>
+                )}
+
+                <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1 font-medium">
                   <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="truncate">{dept?.name || u.departmentName || "Unassigned"}</span>
                 </p>
+
+                {/* Additional user attributes */}
+                <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-2 gap-1.5 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-1 truncate" title={u.phone || "No phone"}>
+                    <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate font-mono">{u.phone || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-1 truncate" title={u.telegramUsername ? `@${u.telegramUsername}` : u.telegramChatId ? `ID: ${u.telegramChatId}` : "No Telegram"}>
+                    <Send className="w-3 h-3 text-sky-500 shrink-0" />
+                    <span className="truncate font-medium text-sky-700">
+                      {u.telegramUsername ? `@${u.telegramUsername.replace("@", "")}` : u.telegramChatId ? `ID: ${u.telegramChatId}` : "Not linked"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 col-span-2 text-slate-400 text-[10px]">
+                    <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span>Joined {u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -170,6 +202,33 @@ export function UserCardGrid({
                   className="text-slate-400 hover:text-amber-600 hover:bg-amber-50"
                 >
                   <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              )}
+
+              {/* Quick Toggle Booking Access (Probation / Full Access) */}
+              {isAdmin && onToggleBookingAccess && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => onToggleBookingAccess(u)}
+                  disabled={actionLoading}
+                  title={
+                    u.bookingAccess === "VIEW_ONLY"
+                      ? "Grant Full Access (Passed Probation)"
+                      : "Restrict to View Only (Probation Staff)"
+                  }
+                  className={`hover:bg-slate-100 ${
+                    u.bookingAccess === "VIEW_ONLY"
+                      ? "text-amber-600 hover:text-amber-700"
+                      : "text-slate-400 hover:text-indigo-600"
+                  }`}
+                >
+                  {u.bookingAccess === "VIEW_ONLY" ? (
+                    <CalendarCheck className="w-3.5 h-3.5" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5" />
+                  )}
                 </Button>
               )}
 

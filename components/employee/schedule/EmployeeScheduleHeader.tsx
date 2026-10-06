@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
-import { Search, Calendar, Filter } from "lucide-react";
+import Link from "next/link";
+import { Search, Calendar, CalendarPlus, Filter, Lock, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { User } from "@/lib/api";
 
 export type ScheduleTimeframe = "all" | "today" | "week" | "past";
 export type ScheduleRsvpFilter = "all" | "ACCEPTED" | "PENDING" | "DECLINED";
@@ -15,6 +17,8 @@ interface EmployeeScheduleHeaderProps {
   rsvpFilter: ScheduleRsvpFilter;
   onRsvpFilterChange: (filter: ScheduleRsvpFilter) => void;
   totalCount: number;
+  onOpenBooking?: () => void;
+  currentUser?: User | null;
 }
 
 export function EmployeeScheduleHeader({
@@ -25,7 +29,11 @@ export function EmployeeScheduleHeader({
   rsvpFilter,
   onRsvpFilterChange,
   totalCount,
+  onOpenBooking,
+  currentUser,
 }: EmployeeScheduleHeaderProps) {
+  const isViewOnly = currentUser?.bookingAccess === "VIEW_ONLY";
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
       {/* Top Title & Total Count */}
@@ -35,11 +43,17 @@ export function EmployeeScheduleHeader({
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold text-slate-900">My Schedule & Agenda</h1>
               <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
                 {totalCount} Sessions
               </span>
+              {isViewOnly && (
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Eye className="w-3 h-3 text-amber-600" />
+                  <span>View Only (Probation)</span>
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">
               Meetings and conferences you are scheduled or invited to attend
@@ -47,48 +61,79 @@ export function EmployeeScheduleHeader({
           </div>
         </div>
 
-        {/* Timeframe Filter Buttons */}
-        <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 self-start sm:self-center">
-          <button
-            onClick={() => onTimeframeChange("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              timeframe === "all"
-                ? "bg-white text-indigo-600 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            All Upcoming
-          </button>
-          <button
-            onClick={() => onTimeframeChange("today")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              timeframe === "today"
-                ? "bg-white text-indigo-600 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => onTimeframeChange("week")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              timeframe === "week"
-                ? "bg-white text-indigo-600 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => onTimeframeChange("past")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              timeframe === "past"
-                ? "bg-white text-indigo-600 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Past
-          </button>
+        {/* Actions & Timeframe Filter Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+          {onOpenBooking && (
+            <button
+              type="button"
+              onClick={onOpenBooking}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer ${
+                isViewOnly
+                  ? "text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300"
+                  : "text-white bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20"
+              }`}
+              title={
+                isViewOnly
+                  ? "Your account is in View Only mode (probation staff)"
+                  : "Book a new meeting"
+              }
+            >
+              {isViewOnly ? (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>View Only (Probation)</span>
+                </>
+              ) : (
+                <>
+                  <CalendarPlus className="w-3.5 h-3.5" />
+                  <span>Book Meeting</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
+            <button
+              onClick={() => onTimeframeChange("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                timeframe === "all"
+                  ? "bg-white text-indigo-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All Upcoming
+            </button>
+            <button
+              onClick={() => onTimeframeChange("today")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                timeframe === "today"
+                  ? "bg-white text-indigo-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => onTimeframeChange("week")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                timeframe === "week"
+                  ? "bg-white text-indigo-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => onTimeframeChange("past")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                timeframe === "past"
+                  ? "bg-white text-indigo-600 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Past
+            </button>
+          </div>
         </div>
       </div>
 

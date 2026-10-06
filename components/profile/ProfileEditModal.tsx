@@ -27,6 +27,9 @@ export function ProfileEditModal({
   const [email, setEmail] = useState(user.email || "");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || "");
   const [departmentId, setDepartmentId] = useState<number | undefined>(user.departmentId);
+  const [telegramChatId, setTelegramChatId] = useState(user.telegramChatId || "");
+  const [telegramUsername, setTelegramUsername] = useState(user.telegramUsername || "");
+  const [telegramReminderMinutes, setTelegramReminderMinutes] = useState(user.telegramReminderMinutes ?? 10);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +39,9 @@ export function ProfileEditModal({
       setEmail(user.email || "");
       setAvatarUrl(user.avatarUrl || "");
       setDepartmentId(user.departmentId);
+      setTelegramChatId(user.telegramChatId || "");
+      setTelegramUsername(user.telegramUsername || "");
+      setTelegramReminderMinutes(user.telegramReminderMinutes ?? 10);
       setError(null);
     }
   }, [isOpen, user]);
@@ -62,6 +68,9 @@ export function ProfileEditModal({
         status: user.status || "ACTIVE",
         avatarUrl: avatarUrl.trim() || undefined,
         departmentId: departmentId ? Number(departmentId) : undefined,
+        telegramChatId: telegramChatId.trim() || undefined,
+        telegramUsername: telegramUsername.trim() || undefined,
+        telegramReminderMinutes: Number(telegramReminderMinutes) || 10,
       };
 
       const updated = await api.users.update(user.userId, payload);
@@ -169,6 +178,57 @@ export function ProfileEditModal({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Telegram Integration Fields */}
+        <div className="pt-2 border-t border-slate-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800">Telegram Bot Notifications</span>
+            <span className="text-[10px] text-sky-600 font-medium">@MMS_Meeting_Alert_Bot</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Telegram Chat ID
+              </label>
+              <Input
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                placeholder="e.g. 1035574371"
+                className="text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Telegram Username
+              </label>
+              <Input
+                value={telegramUsername}
+                onChange={(e) => setTelegramUsername(e.target.value)}
+                placeholder="vibolsen"
+                className="text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+              Pre-Meeting Alert Lead Time (Minutes)
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="1"
+                max="1440"
+                value={telegramReminderMinutes}
+                onChange={(e) => setTelegramReminderMinutes(Number(e.target.value))}
+                className="text-xs w-28"
+              />
+              <span className="text-xs text-slate-500">minutes before meeting starts</span>
+            </div>
+          </div>
         </div>
 
         {/* Modal Controls */}

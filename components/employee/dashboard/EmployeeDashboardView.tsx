@@ -10,6 +10,7 @@ import { EmployeeKPICards } from "./EmployeeKPICards";
 import { EmployeeTodaySchedule } from "./EmployeeTodaySchedule";
 import { EmployeeQuickActions } from "./EmployeeQuickActions";
 import { MeetingDetailsModal } from "@/components/meetings/MeetingDetailsModal";
+import { BookingModal } from "@/components/BookingModal";
 
 export function EmployeeDashboardView() {
   const { user: authUser } = useAuth();
@@ -23,6 +24,7 @@ export function EmployeeDashboardView() {
   // Selected meeting for modal inspection
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   // Load telemetry data from dynamic APIs
   const loadData = useCallback(async () => {
@@ -53,11 +55,12 @@ export function EmployeeDashboardView() {
     loadData();
   }, [loadData]);
 
-  // Derive meetings where current user is an attendee
+  // Derive meetings where current user is an attendee or organizer
   const myAttendingMeetings = useMemo(() => {
     if (!currentUser?.userId) return [];
     return allMeetings.filter((m) =>
-      m.attendees?.some((a) => a.userId === currentUser.userId)
+      m.attendees?.some((a) => a.userId === currentUser.userId) ||
+      m.organizer?.userId === currentUser.userId
     );
   }, [allMeetings, currentUser?.userId]);
 
@@ -107,6 +110,7 @@ export function EmployeeDashboardView() {
         currentUser={currentUser}
         onRefresh={loadData}
         loading={loading}
+        onOpenBooking={() => setBookingModalOpen(true)}
       />
 
       {/* 2. Pending RSVP Callout Banner */}
@@ -128,7 +132,10 @@ export function EmployeeDashboardView() {
       />
 
       {/* 5. Quick Actions */}
-      <EmployeeQuickActions />
+      <EmployeeQuickActions
+        currentUser={currentUser}
+        onOpenBooking={() => setBookingModalOpen(true)}
+      />
 
       {/* Meeting Details Modal */}
       {selectedMeeting && (
@@ -141,6 +148,14 @@ export function EmployeeDashboardView() {
           meeting={selectedMeeting}
         />
       )}
+
+      {/* Booking Popup Modal */}
+      <BookingModal
+        isOpen={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        currentUser={currentUser}
+        onSuccess={loadData}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Building, Shield, Trash2, X, Check, Users, UserCheck } from "lucide-react";
+import { Building, Shield, Trash2, X, Check, Users, UserCheck, CalendarCheck, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Department, UserRole, UserStatus } from "@/lib/api";
+import { Department, UserRole, UserStatus, BookingAccessLevel } from "@/lib/api";
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -11,6 +11,7 @@ interface BulkActionsBarProps {
   onBatchChangeDepartment: (departmentId?: number) => Promise<void>;
   onBatchChangeRole: (role: UserRole) => Promise<void>;
   onBatchChangeStatus?: (status: UserStatus) => Promise<void>;
+  onBatchChangeBookingAccess?: (access: BookingAccessLevel) => Promise<void>;
   onBatchDelete: () => void;
   actionLoading: boolean;
 }
@@ -22,6 +23,7 @@ export function BulkActionsBar({
   onBatchChangeDepartment,
   onBatchChangeRole,
   onBatchChangeStatus,
+  onBatchChangeBookingAccess,
   onBatchDelete,
   actionLoading,
 }: BulkActionsBarProps) {
@@ -33,6 +35,9 @@ export function BulkActionsBar({
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<UserStatus>("ACTIVE");
+
+  const [accessModalOpen, setAccessModalOpen] = useState(false);
+  const [selectedAccess, setSelectedAccess] = useState<BookingAccessLevel>("FULL_ACCESS");
 
   if (selectedCount === 0) return null;
 
@@ -48,6 +53,21 @@ export function BulkActionsBar({
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Batch Booking Access (Probation / Full Access) */}
+          {onBatchChangeBookingAccess && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setAccessModalOpen(true)}
+              leftIcon={<CalendarCheck className="w-3.5 h-3.5 text-amber-400" />}
+              className="text-xs text-slate-200 hover:text-white hover:bg-slate-800 h-8 px-2.5"
+              disabled={actionLoading}
+            >
+              Set Access
+            </Button>
+          )}
+
           {/* Batch Status */}
           {onBatchChangeStatus && (
             <Button
@@ -274,6 +294,58 @@ export function BulkActionsBar({
           </div>
         </div>
       </Modal>
+
+      {/* Batch Booking Access Modal (Probation / Full Access) */}
+      {onBatchChangeBookingAccess && (
+        <Modal
+          isOpen={accessModalOpen}
+          onClose={() => setAccessModalOpen(false)}
+          title={`Set Booking Access (${selectedCount} Users)`}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Update booking privileges for all <strong>{selectedCount}</strong> selected staff. Use <strong>View Only</strong> for probation employees or interns to restrict them from booking rooms.
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Booking Access Level
+              </label>
+              <select
+                value={selectedAccess}
+                onChange={(e) => setSelectedAccess(e.target.value as BookingAccessLevel)}
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 font-medium focus:outline-none focus:border-indigo-500"
+              >
+                <option value="FULL_ACCESS">FULL_ACCESS (Can create room reservations & request equipment)</option>
+                <option value="VIEW_ONLY">VIEW_ONLY (Probation Staff / Intern - Restricted from booking)</option>
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setAccessModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                isLoading={actionLoading}
+                onClick={async () => {
+                  await onBatchChangeBookingAccess(selectedAccess);
+                  setAccessModalOpen(false);
+                }}
+              >
+                Apply to {selectedCount} Users
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

@@ -11,5 +11,6 @@ export * from "./BulkActionsBar";
 export * from "./UserImportModal";
 export * from "./UserFormModal";
 export * from "./UserDetailsModal";
+export * from "./BookingAccessBadge";
 export * from "./AddUserModal";
 

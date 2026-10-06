@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, Department, Meeting, api } from "@/lib/api";
 import { UserRoleBadge } from "./UserRoleBadge";
 import { UserStatusBadge } from "./UserStatusBadge";
+import { BookingAccessBadge } from "./BookingAccessBadge";
 import { UserAvatar } from "./UserAvatar";
 import {
   Mail,
@@ -17,6 +18,13 @@ import {
   ExternalLink,
   ShieldAlert,
   ShieldCheck,
+  CalendarCheck,
+  Lock,
+  Phone,
+  Briefcase,
+  Send,
+  Bell,
+  BellOff,
 } from "lucide-react";
 
 interface UserDetailsModalProps {
@@ -27,6 +35,7 @@ interface UserDetailsModalProps {
   isAdmin: boolean;
   onEdit?: (user: User) => void;
   onToggleStatus?: (user: User) => void;
+  onToggleBookingAccess?: (user: User) => void;
 }
 
 export function UserDetailsModal({
@@ -37,6 +46,7 @@ export function UserDetailsModal({
   isAdmin,
   onEdit,
   onToggleStatus,
+  onToggleBookingAccess,
 }: UserDetailsModalProps) {
   const [userMeetings, setUserMeetings] = useState<Meeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(false);
@@ -76,6 +86,7 @@ export function UserDetailsModal({
               <h3 className="font-bold text-slate-900 text-base truncate">{user.name}</h3>
               <UserRoleBadge role={user.role} />
               <UserStatusBadge status={user.status} />
+              <BookingAccessBadge access={user.bookingAccess} />
             </div>
             <p className="text-xs text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
               <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -97,9 +108,19 @@ export function UserDetailsModal({
           <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
             <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-indigo-500" />
-              Access Level
+              System Role
             </span>
             <p className="font-bold text-slate-800">{user.role}</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+              Job Title / Designation
+            </span>
+            <p className="font-bold text-slate-800 truncate" title={user.jobTitle || "Not Specified"}>
+              {user.jobTitle || "—"}
+            </p>
           </div>
 
           <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
@@ -108,6 +129,32 @@ export function UserDetailsModal({
               Assigned Department
             </span>
             <p className="font-bold text-slate-800 truncate">{departmentName}</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-indigo-500" />
+              Phone / Mobile
+            </span>
+            <p className="font-bold text-slate-800 font-mono text-[11px]">
+              {user.phone || "—"}
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+              Date Joined
+            </span>
+            <p className="font-bold text-slate-800 text-[11px]">
+              {user.createdAt
+                ? new Date(user.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "—"}
+            </p>
           </div>
 
           <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
@@ -125,6 +172,69 @@ export function UserDetailsModal({
               }`}
             >
               {user.status || "ACTIVE"}
+            </p>
+          </div>
+
+          {/* Telegram Integration Tile */}
+          <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+              <Send className="w-3.5 h-3.5 text-sky-500" />
+              Telegram Alerts
+            </span>
+            {user.telegramUsername ? (
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://t.me/${user.telegramUsername.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-sky-600 hover:text-sky-800 hover:underline text-[11px]"
+                >
+                  @{user.telegramUsername.replace("@", "")}
+                </a>
+                <span className="text-[10px] text-slate-400">
+                  ({user.telegramNotificationsEnabled ? `${user.telegramReminderMinutes || 10}m before` : "Disabled"})
+                </span>
+              </div>
+            ) : user.telegramChatId ? (
+              <p className="font-mono text-[11px] text-slate-700">
+                ID: {user.telegramChatId}
+              </p>
+            ) : (
+              <p className="text-slate-400 italic text-[11px]">Not linked</p>
+            )}
+          </div>
+
+          {/* Booking Privilege / Access Level Tile */}
+          <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1 col-span-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                {user.bookingAccess === "VIEW_ONLY" ? (
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                ) : (
+                  <CalendarCheck className="w-3.5 h-3.5 text-indigo-500" />
+                )}
+                Booking Privilege (Probation / Full Access)
+              </span>
+              {isAdmin && onToggleBookingAccess && (
+                <button
+                  type="button"
+                  onClick={() => onToggleBookingAccess(user)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                    user.bookingAccess === "VIEW_ONLY"
+                      ? "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+                      : "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                  }`}
+                >
+                  {user.bookingAccess === "VIEW_ONLY"
+                    ? "Grant Full Access (Passed Probation)"
+                    : "Set to View Only (Probation Staff)"}
+                </button>
+              )}
+            </div>
+            <p className="font-bold text-slate-800 text-xs">
+              {user.bookingAccess === "VIEW_ONLY"
+                ? "View Only (Probation staff / restricted from making new reservations)"
+                : "Full Access (Can create room bookings and request equipment)"}
             </p>
           </div>
         </div>

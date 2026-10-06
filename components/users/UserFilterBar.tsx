@@ -9,6 +9,7 @@ import {
   Building,
   Shield,
   UserCheck,
+  CalendarCheck,
   List,
   LayoutGrid,
 } from "lucide-react";
@@ -29,6 +30,8 @@ interface UserFilterBarProps {
   onStatusFilterChange: (status: string) => void;
   departmentFilter: string;
   onDepartmentFilterChange: (deptId: string) => void;
+  accessFilter?: string;
+  onAccessFilterChange?: (access: string) => void;
   departments: Department[];
   sortBy: UserSortField;
   onSortByChange: (field: UserSortField) => void;
@@ -52,6 +55,8 @@ export function UserFilterBar({
   onStatusFilterChange,
   departmentFilter,
   onDepartmentFilterChange,
+  accessFilter = "ALL",
+  onAccessFilterChange,
   departments,
   sortBy,
   onSortByChange,
@@ -93,14 +98,13 @@ export function UserFilterBar({
           )}
         </div>
 
-        {/* Row 2: Small Filter and Action Buttons */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2.5 border-t border-slate-100">
-          {/* Left Group: Filters (Status, Role, Department) */}
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Row 2: Horizontally Scrollable Functions & Filters Bar (Strictly 2 rows total) */}
+        <div className="pt-2.5 border-t border-slate-100 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300 pb-1 scroll-smooth">
+          <div className="flex items-center gap-2 min-w-max">
             {/* Filter by: Status */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8 shrink-0">
               <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Status:
               </span>
               <select
@@ -116,9 +120,9 @@ export function UserFilterBar({
             </div>
 
             {/* Filter by: Role */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8 shrink-0">
               <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Role:
               </span>
               <select
@@ -135,15 +139,15 @@ export function UserFilterBar({
             </div>
 
             {/* Filter by: Department */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8 shrink-0">
               <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Dept:
               </span>
               <select
                 value={departmentFilter}
                 onChange={(e) => onDepartmentFilterChange(e.target.value)}
-                className="text-xs bg-transparent focus:outline-none font-semibold text-slate-800 cursor-pointer max-w-[140px] truncate pr-1"
+                className="text-xs bg-transparent focus:outline-none font-semibold text-slate-800 cursor-pointer max-w-[150px] truncate pr-1"
                 title="Filter by Department"
               >
                 <option value="ALL">All Departments</option>
@@ -155,14 +159,34 @@ export function UserFilterBar({
                 <option value="UNASSIGNED">Unassigned</option>
               </select>
             </div>
-          </div>
 
-          {/* Right Group: Sorting, View Switcher & Export */}
-          <div className="flex flex-wrap items-center gap-2 justify-start lg:justify-end">
+            {/* Filter by: Booking Privilege / Access */}
+            {onAccessFilterChange && (
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8 shrink-0">
+                <CalendarCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Access:
+                </span>
+                <select
+                  value={accessFilter}
+                  onChange={(e) => onAccessFilterChange(e.target.value)}
+                  className="text-xs bg-transparent focus:outline-none font-semibold text-slate-800 cursor-pointer pr-1"
+                  title="Filter by Booking Access"
+                >
+                  <option value="ALL">All Privileges</option>
+                  <option value="FULL_ACCESS">Full Access</option>
+                  <option value="VIEW_ONLY">View Only (Probation)</option>
+                </select>
+              </div>
+            )}
+
+            {/* Visual Divider */}
+            <div className="h-5 w-px bg-slate-200 mx-0.5 shrink-0" />
+
             {/* Sort by Field */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 h-8 shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Sort:
               </span>
               <select
@@ -194,12 +218,15 @@ export function UserFilterBar({
                 )
               }
               title={`Sort Order: ${sortOrder === "asc" ? "Ascending (A-Z / 1-9)" : "Descending (Z-A / 9-1)"}`}
-              className="text-[11px] font-semibold text-slate-700 px-2.5 h-8"
+              className="text-[11px] font-semibold text-slate-700 px-2.5 h-8 shrink-0"
             >
               {sortOrder === "asc" ? "Asc" : "Desc"}
             </Button>
 
-            {/* Export to Excel Button with Excel Icon */}
+            {/* Visual Divider */}
+            <div className="h-5 w-px bg-slate-200 mx-0.5 shrink-0" />
+
+            {/* Export to Excel Button */}
             {handleExport && (
               <Button
                 type="button"
@@ -208,14 +235,14 @@ export function UserFilterBar({
                 onClick={handleExport}
                 leftIcon={<RiFileExcel2Line className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                 title="Export filtered directory to Excel"
-                className="text-[11px] font-semibold text-slate-700 px-2.5 h-8 hover:text-emerald-700 hover:border-emerald-200"
+                className="text-[11px] font-semibold text-slate-700 px-2.5 h-8 hover:text-emerald-700 hover:border-emerald-200 shrink-0"
               >
                 Export
               </Button>
             )}
 
             {/* View Mode Switcher (Table vs Grid) */}
-            <div className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200 h-8">
+            <div className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200 h-8 shrink-0">
               <button
                 type="button"
                 onClick={() => onViewModeChange("table")}
@@ -250,7 +277,7 @@ export function UserFilterBar({
                 size="sm"
                 onClick={onResetFilters}
                 leftIcon={<RotateCcw className="w-3.5 h-3.5 text-rose-600" />}
-                className="text-[11px] font-bold text-rose-700 bg-rose-50/60 hover:bg-rose-100/80 border-rose-200 px-2.5 h-8"
+                className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200 px-2.5 h-8 shrink-0"
                 title="Reset all filters and sorting"
               >
                 Reset

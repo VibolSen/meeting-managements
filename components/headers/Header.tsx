@@ -53,6 +53,34 @@ export function Header({
     }
   }, [authLoading, user, router]);
 
+  const [appName, setAppName] = useState("Enterprise MMS");
+  const [orgName, setOrgName] = useState("Enterprise Workspace");
+
+  // Load dynamic branding from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBranding = () => {
+      api.systemSettings
+        .getPublic()
+        .then((items) => {
+          if (!isMounted || !Array.isArray(items)) return;
+          const app = items.find((i) => i.settingKey === "branding.app_name");
+          const org = items.find((i) => i.settingKey === "branding.organization_name");
+          if (app?.settingValue) setAppName(app.settingValue);
+          if (org?.settingValue) setOrgName(org.settingValue);
+        })
+        .catch(() => {});
+    };
+
+    fetchBranding();
+    const handleSettingsUpdated = () => fetchBranding();
+    window.addEventListener("system-settings-updated", handleSettingsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("system-settings-updated", handleSettingsUpdated);
+    };
+  }, []);
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -69,20 +97,33 @@ export function Header({
   // Real-time unread notification count
   useEffect(() => {
     let isMounted = true;
-    if (user?.userId) {
-      api.notifications
-        .getByUser(user.userId)
-        .then((items) => {
-          if (isMounted && Array.isArray(items)) {
-            setUnreadCount(items.length);
-          }
-        })
-        .catch(() => {
-          if (isMounted) setUnreadCount(0);
-        });
-    }
+
+    const fetchUnread = () => {
+      if (user?.userId) {
+        api.notifications
+          .getByUser(user.userId)
+          .then((items) => {
+            if (isMounted && Array.isArray(items)) {
+              const unread = items.filter((n) => n.status !== "READ").length;
+              setUnreadCount(unread);
+            }
+          })
+          .catch(() => {
+            if (isMounted) setUnreadCount(0);
+          });
+      }
+    };
+
+    fetchUnread();
+
+    const handleReadEvent = () => {
+      fetchUnread();
+    };
+
+    window.addEventListener("notification-read", handleReadEvent);
     return () => {
       isMounted = false;
+      window.removeEventListener("notification-read", handleReadEvent);
     };
   }, [user?.userId]);
 
@@ -138,7 +179,7 @@ export function Header({
                 : "Employee Portal"}
             </span>
             <span className="text-slate-300">•</span>
-            <span className="text-[11px] text-slate-400">Enterprise MMS</span>
+            <span className="text-[11px] text-slate-400 font-medium">{appName}</span>
           </div>
         )}
       </div>

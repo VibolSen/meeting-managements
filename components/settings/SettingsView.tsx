@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Globe,
@@ -10,6 +10,8 @@ import {
   KeyRound,
   Sparkles,
   ClipboardList,
+  MessageSquareCode,
+  ShieldCheck,
 } from "lucide-react";
 import {
   AppSettings,
@@ -18,6 +20,7 @@ import {
   setStoredSettings,
   resetStoredSettings,
 } from "@/lib/settings";
+import { api, SystemSettingItem } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { SettingsHeader } from "./SettingsHeader";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
@@ -25,36 +28,87 @@ import { NotificationSettingsTab } from "./NotificationSettingsTab";
 import { MeetingDefaultsTab } from "./MeetingDefaultsTab";
 import { SystemPoliciesTab } from "./SystemPoliciesTab";
 import { SecuritySettingsTab } from "./SecuritySettingsTab";
+import { RolePermissionsTab } from "./RolePermissionsTab";
+import { AlertTemplateEditor } from "./AlertTemplateEditor";
 import { AuditLogView } from "@/components/audit/AuditLogView";
 
 interface SettingsViewProps {
   role: "ADMIN" | "ORGANIZER" | "EMPLOYEE";
 }
 
-type TabKey = "general" | "notifications" | "meetings" | "policies" | "security" | "audit";
+type TabKey =
+  | "general"
+  | "notifications"
+  | "meetings"
+  | "permissions"
+  | "policies"
+  | "security"
+  | "audit"
+  | "templates";
 
 export function SettingsView({ role }: SettingsViewProps) {
   const toast = useToast();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
+
+  // Local storage display preferences
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [savedSettings, setSavedSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+
+  // Backend dynamic system settings (Admin & public)
+  const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
+  const [savedSystemSettings, setSavedSystemSettings] = useState<Record<string, string>>({});
+
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize from client storage and query parameter
+  // Fetch backend dynamic configurations
+  const fetchBackendSettings = useCallback(async () => {
+    try {
+      const items: SystemSettingItem[] =
+        role === "ADMIN"
+          ? await api.systemSettings.getAll()
+          : await api.systemSettings.getPublic();
+
+      const map: Record<string, string> = {};
+      items.forEach((item) => {
+        map[item.settingKey] = item.settingValue;
+      });
+
+      setSystemSettings(map);
+      setSavedSystemSettings(map);
+    } catch (err) {
+      console.error("Failed to load backend system settings:", err);
+    }
+  }, [role]);
+
+  // Initialize from client storage, backend API, and query parameters
   useEffect(() => {
     const loaded = getStoredSettings();
     setSettings(loaded);
     setSavedSettings(loaded);
-    setMounted(true);
+    fetchBackendSettings().finally(() => setMounted(true));
 
     const tabParam = searchParams.get("tab") as TabKey | null;
     if (
       tabParam &&
-      ["general", "notifications", "meetings", "policies", "security", "audit"].includes(tabParam)
+      [
+        "general",
+        "notifications",
+        "meetings",
+        "permissions",
+        "policies",
+        "security",
+        "audit",
+        "templates",
+      ].includes(tabParam)
     ) {
-      if (tabParam === "audit" || tabParam === "policies") {
+      if (
+        tabParam === "audit" ||
+        tabParam === "policies" ||
+        tabParam === "templates" ||
+        tabParam === "permissions"
+      ) {
         if (role === "ADMIN") {
           setActiveTab(tabParam);
         }
@@ -62,11 +116,14 @@ export function SettingsView({ role }: SettingsViewProps) {
         setActiveTab(tabParam);
       }
     }
-  }, [searchParams, role]);
+  }, [searchParams, role, fetchBackendSettings]);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(settings) !== JSON.stringify(savedSettings);
-  }, [settings, savedSettings]);
+    const localDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
+    const backendDirty =
+      JSON.stringify(systemSettings) !== JSON.stringify(savedSystemSettings);
+    return localDirty || backendDirty;
+  }, [settings, savedSettings, systemSettings, savedSystemSettings]);
 
   const handleSettingChange = <K extends keyof AppSettings>(
     key: K,
@@ -78,27 +135,71 @@ export function SettingsView({ role }: SettingsViewProps) {
     }));
   };
 
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setStoredSettings(settings);
-      setSavedSettings(settings);
-      setIsSaving(false);
-      toast.success(
-        "Settings Saved",
-        "Your workspace preferences have been successfully updated."
-      );
-    }, 400);
+  const handleSystemSettingChange = (key: string, value: string) => {
+    setSystemSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
-  const handleReset = () => {
-    const defaults = resetStoredSettings();
-    setSettings(defaults);
-    setSavedSettings(defaults);
-    toast.info(
-      "Settings Reset",
-      "Restored standard system default configurations."
-    );
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // 1. Save local browser preferences
+      setStoredSettings(settings);
+      setSavedSettings(settings);
+
+      // 2. Save backend dynamic system settings if Admin
+      if (role === "ADMIN") {
+        const updates = Object.entries(systemSettings)
+          .filter(([k, v]) => v !== savedSystemSettings[k])
+          .map(([settingKey, settingValue]) => ({ settingKey, settingValue }));
+
+        if (updates.length > 0) {
+          await api.systemSettings.batchUpdate(updates);
+          setSavedSystemSettings(systemSettings);
+        }
+      }
+
+      // 3. Dispatch global synchronization event
+      window.dispatchEvent(new CustomEvent("system-settings-updated"));
+
+      toast.success(
+        "Settings Saved",
+        "Workspace preferences and system governance policies have been successfully updated."
+      );
+    } catch (err: any) {
+      toast.error(
+        "Save Failed",
+        err?.message || "An error occurred while saving dynamic configurations."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReset = async () => {
+    try {
+      if (role === "ADMIN") {
+        await api.systemSettings.resetToDefaults();
+        await fetchBackendSettings();
+      }
+
+      const defaults = resetStoredSettings();
+      setSettings(defaults);
+      setSavedSettings(defaults);
+
+      window.dispatchEvent(new CustomEvent("system-settings-updated"));
+      toast.info(
+        "Settings Reset",
+        "Restored standard system default configurations."
+      );
+    } catch (err: any) {
+      toast.error(
+        "Reset Failed",
+        err?.message || "Failed to reset settings to factory defaults."
+      );
+    }
   };
 
   const tabs = useMemo(() => {
@@ -111,14 +212,14 @@ export function SettingsView({ role }: SettingsViewProps) {
     }> = [
       {
         key: "general",
-        label: "General & Regional",
-        description: "Timezone, date formats, calendar layout",
+        label: "General & Branding",
+        description: "Application name, logo, timezones, layout",
         icon: Globe,
       },
       {
         key: "notifications",
         label: "Notifications & Alerts",
-        description: "In-app triggers, digest frequency, audio",
+        description: "In-app triggers, Telegram bot, lead times",
         icon: Bell,
       },
       {
@@ -131,10 +232,24 @@ export function SettingsView({ role }: SettingsViewProps) {
 
     if (role === "ADMIN") {
       list.push({
+        key: "permissions",
+        label: "Role & Permissions",
+        description: "Employee & Organizer booking privileges",
+        icon: ShieldCheck,
+        badge: "Admin",
+      });
+      list.push({
         key: "policies",
         label: "System Policies",
-        description: "Booking horizons, capacity thresholds",
+        description: "Booking horizons, capacity thresholds, hours",
         icon: ShieldAlert,
+        badge: "Admin",
+      });
+      list.push({
+        key: "templates",
+        label: "Alert Templates",
+        description: "Telegram & system message templates",
+        icon: MessageSquareCode,
         badge: "Admin",
       });
       list.push({
@@ -177,7 +292,7 @@ export function SettingsView({ role }: SettingsViewProps) {
         isSaving={isSaving}
         onSave={handleSave}
         onReset={handleReset}
-        showActions={activeTab !== "audit"}
+        showActions={activeTab !== "audit" && activeTab !== "templates"}
       />
 
       {/* Main Settings Body */}
@@ -233,10 +348,10 @@ export function SettingsView({ role }: SettingsViewProps) {
             <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <span className="text-xs font-bold text-slate-900">
-                Workspace Personalization
+                Live Dynamic Governance
               </span>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Changes apply seamlessly to your calendar views, invitation cards, and notifications.
+                Settings update directly in MySQL and enforce real-time business logic across all calendars, bookings, and alerts.
               </p>
             </div>
           </div>
@@ -245,13 +360,22 @@ export function SettingsView({ role }: SettingsViewProps) {
         {/* Content Pane */}
         <main className="md:col-span-8 lg:col-span-9 bg-white/50 rounded-2xl">
           {activeTab === "general" && (
-            <GeneralSettingsTab settings={settings} onChange={handleSettingChange} />
+            <GeneralSettingsTab
+              settings={settings}
+              onChange={handleSettingChange}
+              systemSettings={systemSettings}
+              onSystemSettingChange={handleSystemSettingChange}
+              isAdmin={role === "ADMIN"}
+            />
           )}
 
           {activeTab === "notifications" && (
             <NotificationSettingsTab
               settings={settings}
               onChange={handleSettingChange}
+              systemSettings={systemSettings}
+              onSystemSettingChange={handleSystemSettingChange}
+              isAdmin={role === "ADMIN"}
             />
           )}
 
@@ -259,6 +383,15 @@ export function SettingsView({ role }: SettingsViewProps) {
             <MeetingDefaultsTab
               settings={settings}
               onChange={handleSettingChange}
+              systemSettings={systemSettings}
+              onSystemSettingChange={handleSystemSettingChange}
+            />
+          )}
+
+          {activeTab === "permissions" && role === "ADMIN" && (
+            <RolePermissionsTab
+              systemSettings={systemSettings}
+              onSettingChange={handleSystemSettingChange}
             />
           )}
 
@@ -266,7 +399,13 @@ export function SettingsView({ role }: SettingsViewProps) {
             <SystemPoliciesTab
               settings={settings}
               onChange={handleSettingChange}
+              systemSettings={systemSettings}
+              onSystemSettingChange={handleSystemSettingChange}
             />
+          )}
+
+          {activeTab === "templates" && role === "ADMIN" && (
+            <AlertTemplateEditor />
           )}
 
           {activeTab === "security" && (

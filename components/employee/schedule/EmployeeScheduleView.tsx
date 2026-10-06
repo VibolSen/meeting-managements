@@ -12,6 +12,7 @@ import {
 import { EmployeeScheduleStats } from "./EmployeeScheduleStats";
 import { EmployeeScheduleList } from "./EmployeeScheduleList";
 import { MeetingDetailsModal } from "@/components/meetings/MeetingDetailsModal";
+import { BookingModal } from "@/components/BookingModal";
 
 export function EmployeeScheduleView() {
   const { user: authUser } = useAuth();
@@ -30,6 +31,7 @@ export function EmployeeScheduleView() {
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [rsvpActionLoadingId, setRsvpActionLoadingId] = useState<number | null>(null);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -74,11 +76,12 @@ export function EmployeeScheduleView() {
     }
   };
 
-  // Base list of meetings user is attending
+  // Base list of meetings user is attending or organizing
   const myAttendingMeetings = useMemo(() => {
     if (!currentUser?.userId) return [];
     return allMeetings.filter((m) =>
-      m.attendees?.some((a) => a.userId === currentUser.userId)
+      m.attendees?.some((a) => a.userId === currentUser.userId) ||
+      m.organizer?.userId === currentUser.userId
     );
   }, [allMeetings, currentUser?.userId]);
 
@@ -175,6 +178,8 @@ export function EmployeeScheduleView() {
         rsvpFilter={rsvpFilter}
         onRsvpFilterChange={setRsvpFilter}
         totalCount={filteredMeetings.length}
+        onOpenBooking={() => setBookingModalOpen(true)}
+        currentUser={currentUser}
       />
 
       {/* 2. Schedule Key Metric Counters */}
@@ -208,6 +213,14 @@ export function EmployeeScheduleView() {
           meeting={selectedMeeting}
         />
       )}
+
+      {/* Booking Popup Modal */}
+      <BookingModal
+        isOpen={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        currentUser={currentUser}
+        onSuccess={loadData}
+      />
     </div>
   );
 }

@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { Department, UserRole, UserStatus } from "@/lib/api";
+import { Department, UserRole, UserStatus, BookingAccessLevel } from "@/lib/api";
 import { useToast } from "@/components/Toast";
-import { Plus, Pencil, KeyRound, Copy, Check, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, KeyRound, Copy, Check, Image as ImageIcon, CalendarCheck, Eye } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 
 export interface UserFormData {
@@ -14,7 +14,10 @@ export interface UserFormData {
   role: UserRole;
   departmentId?: number;
   status?: UserStatus;
+  bookingAccess?: BookingAccessLevel;
   avatarUrl?: string;
+  jobTitle?: string;
+  phone?: string;
 }
 
 interface UserFormModalProps {
@@ -109,6 +112,32 @@ export function UserFormModal({
             value={userForm.email}
             onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
           />
+        </div>
+
+        {/* 2-Column: Job Title and Phone Number */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Job Title / Designation (optional)
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. Senior Tech Lead"
+              value={userForm.jobTitle || ""}
+              onChange={(e) => setUserForm({ ...userForm, jobTitle: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Phone / Mobile (optional)
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. +855 12 345 678"
+              value={userForm.phone || ""}
+              onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+            />
+          </div>
         </div>
 
         {/* Avatar Image URL with Live Thumbnail Preview */}
@@ -238,6 +267,69 @@ export function UserFormModal({
               <option value="SUSPENDED">SUSPENDED</option>
             </Select>
           </div>
+        </div>
+
+        {/* Booking Privilege / Access Level (Probation / Intern control) */}
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-slate-800">
+              Booking Permission & Access Level
+            </label>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                userForm.bookingAccess === "VIEW_ONLY"
+                  ? "bg-amber-100 text-amber-800 border border-amber-300"
+                  : "bg-indigo-100 text-indigo-800 border border-indigo-200"
+              }`}
+            >
+              {userForm.bookingAccess === "VIEW_ONLY" ? "Probation / Restricted" : "Standard Privileges"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setUserForm({ ...userForm, bookingAccess: "FULL_ACCESS" })}
+              className={`p-2.5 rounded-lg border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                (userForm.bookingAccess || "FULL_ACCESS") === "FULL_ACCESS"
+                  ? "bg-white border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs"
+                  : "bg-white/60 border-slate-200 hover:border-slate-300 text-slate-600"
+              }`}
+            >
+              <CalendarCheck className={`w-4 h-4 mt-0.5 shrink-0 ${
+                (userForm.bookingAccess || "FULL_ACCESS") === "FULL_ACCESS" ? "text-indigo-600" : "text-slate-400"
+              }`} />
+              <div>
+                <p className="text-xs font-bold text-slate-800">Full Access (Can Book)</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                  Full rights to reserve rooms, invite colleagues & request equipment.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setUserForm({ ...userForm, bookingAccess: "VIEW_ONLY" })}
+              className={`p-2.5 rounded-lg border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                userForm.bookingAccess === "VIEW_ONLY"
+                  ? "bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs"
+                  : "bg-white/60 border-slate-200 hover:border-slate-300 text-slate-600"
+              }`}
+            >
+              <Eye className={`w-4 h-4 mt-0.5 shrink-0 ${
+                userForm.bookingAccess === "VIEW_ONLY" ? "text-amber-600" : "text-slate-400"
+              }`} />
+              <div>
+                <p className="text-xs font-bold text-slate-800">View Only (Probation Staff)</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                  Restricted from booking. Staff can only view agendas & attend invites.
+                </p>
+              </div>
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-400 leading-tight">
+            Use <strong>View Only</strong> for employees under probation or interns. Once probation is completed, simply switch back to <strong>Full Access</strong>.
+          </p>
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">

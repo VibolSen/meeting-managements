@@ -5,6 +5,7 @@ export const API_BASE =
 
 export type UserRole = "ADMIN" | "ORGANIZER" | "EMPLOYEE";
 export type UserStatus = "ACTIVE" | "SUSPENDED";
+export type BookingAccessLevel = "FULL_ACCESS" | "VIEW_ONLY";
 export type RoomStatus = "ACTIVE" | "UNDER_MAINTENANCE" | "INACTIVE";
 export type MeetingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
 export type AttendeeResponseStatus = "ACCEPTED" | "DECLINED" | "PENDING";
@@ -12,7 +13,34 @@ export type MaterialType = "EQUIPMENT" | "STATIONERY" | "CATERING";
 export type StaffRole = "TECHNICIAN" | "RECEPTIONIST" | "FACILITATOR";
 export type StaffAvailability = "AVAILABLE" | "ASSIGNED" | "OFF_DUTY";
 export type NotificationType = "CONFIRMATION" | "REMINDER" | "CHANGE" | "CANCELLATION";
-export type NotificationStatus = "SENT" | "FAILED" | "PENDING";
+export type NotificationStatus = "SENT" | "FAILED" | "PENDING" | "READ";
+
+export type SettingCategory =
+  | "ROLE_PERMISSIONS"
+  | "BOOKING_POLICY"
+  | "SCHEDULING_DEFAULTS"
+  | "NOTIFICATIONS"
+  | "BRANDING"
+  | "SECURITY";
+
+export type SettingDataType = "BOOLEAN" | "NUMBER" | "STRING" | "JSON";
+
+export interface SystemSettingItem {
+  settingKey: string;
+  settingValue: string;
+  category: SettingCategory;
+  dataType: SettingDataType;
+  displayName: string;
+  description?: string;
+  isPublic: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface SystemSettingUpdateItem {
+  settingKey: string;
+  settingValue: string;
+}
 
 export interface Department {
   departmentId: number;
@@ -30,7 +58,40 @@ export interface User {
   departmentId?: number;
   departmentName?: string;
   status?: UserStatus;
+  bookingAccess?: BookingAccessLevel;
   avatarUrl?: string;
+  phone?: string;
+  jobTitle?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  telegramChatId?: string;
+  telegramUsername?: string;
+  telegramReminderMinutes?: number;
+  telegramNotificationsEnabled?: boolean;
+}
+
+export interface TelegramStatus {
+  botEnabled: boolean;
+  botUsername: string;
+  defaultChatId: string;
+  defaultReminderMinutes: number;
+  botLink: string;
+}
+
+export interface NotificationTemplate {
+  templateId?: number;
+  type: NotificationType;
+  name: string;
+  content: string;
+  isCustomized: boolean;
+  updatedAt?: string;
+}
+
+export interface TelegramSettingsPayload {
+  telegramChatId?: string;
+  telegramUsername?: string;
+  telegramReminderMinutes?: number;
+  telegramNotificationsEnabled?: boolean;
 }
 
 export interface Room {
@@ -286,12 +347,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw errorData;
   }
 
-  // Handle 204 No Content
+  // Handle 204 No Content or empty responses
   if (response.status === 204) {
     return {} as T;
   }
 
-  return response.json();
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 // ----------------- API CLIENTS -----------------
@@ -415,6 +485,8 @@ export const api = {
       request<User>(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     updateStatus: (id: number, status: UserStatus) =>
       request<User>(`/users/${id}/status?status=${status}`, { method: "PATCH" }),
+    updateBookingAccess: (id: number, access: BookingAccessLevel) =>
+      request<User>(`/users/${id}/booking-access?access=${access}`, { method: "PATCH" }),
     delete: (id: number) => request<void>(`/users/${id}`, { method: "DELETE" }),
   },
   departments: {
@@ -432,6 +504,30 @@ export const api = {
     getByUser: (userId: number) => request<NotificationItem[]>(`/notifications/user/${userId}`),
     updateStatus: (id: number, status: NotificationStatus) =>
       request<void>(`/notifications/${id}/status?status=${status}`, { method: "PATCH" }),
+    markAsRead: (id: number) =>
+      request<void>(`/notifications/${id}/status?status=READ`, { method: "PATCH" }),
+    markAllAsRead: (userId: number) =>
+      request<void>(`/notifications/user/${userId}/read-all`, { method: "PATCH" }),
+  },
+
+  // Dynamic System Settings & Governance
+  systemSettings: {
+    getPublic: () => request<SystemSettingItem[]>("/system/settings"),
+    getAll: () => request<SystemSettingItem[]>("/system/settings/all"),
+    getByCategory: (category: SettingCategory) =>
+      request<SystemSettingItem[]>(`/system/settings/category/${category}`),
+    batchUpdate: (updates: SystemSettingUpdateItem[]) =>
+      request<SystemSettingItem[]>("/system/settings", {
+        method: "PUT",
+        body: JSON.stringify(updates),
+      }),
+    updateSingle: (key: string, value: string) =>
+      request<SystemSettingItem>(
+        `/system/settings/${encodeURIComponent(key)}?value=${encodeURIComponent(value)}`,
+        { method: "PATCH" }
+      ),
+    resetToDefaults: () =>
+      request<void>("/system/settings/reset", { method: "POST" }),
   },
 
   // System Version & Metadata
@@ -484,5 +580,35 @@ export const api = {
       const queryString = query.toString() ? `?${query.toString()}` : "";
       return `${API_BASE}/audit-logs/export${queryString}`;
     },
+  },
+
+  // Telegram Multi-Channel Alerts & Templates
+  telegram: {
+    getStatus: () => request<TelegramStatus>("/telegram/status"),
+    sendTest: (chatId?: string, customMessage?: string) =>
+      request<{ success: boolean; targetChatId: string; message: string }>("/telegram/test", {
+        method: "POST",
+        body: JSON.stringify({ chatId, customMessage }),
+      }),
+    getTemplates: () => request<NotificationTemplate[]>("/telegram/templates"),
+    updateTemplate: (type: NotificationType, content: string) =>
+      request<NotificationTemplate>(`/telegram/templates/${type}`, {
+        method: "PUT",
+        body: JSON.stringify({ content }),
+      }),
+    resetTemplate: (type: NotificationType) =>
+      request<NotificationTemplate>(`/telegram/templates/${type}/reset`, {
+        method: "POST",
+      }),
+    previewTemplate: (type: NotificationType, content?: string) =>
+      request<{ rendered: string }>("/telegram/templates/preview", {
+        method: "POST",
+        body: JSON.stringify({ type, content }),
+      }),
+    updateUserSettings: (userId: number, payload: TelegramSettingsPayload) =>
+      request<User>(`/telegram/users/${userId}/settings`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
   },
 };

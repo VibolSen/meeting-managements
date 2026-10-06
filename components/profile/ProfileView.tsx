@@ -230,11 +230,30 @@ export function ProfileView({ initialUser, preferredRole }: ProfileViewProps = {
               <UserRoleBadge role={currentUser.role} />
             </div>
 
-            <div className="flex items-center justify-between py-1.5">
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
               <span className="text-slate-500 font-medium">Account Status</span>
               <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {currentUser.status || "ACTIVE"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
+              <span className="text-slate-500 font-medium">Telegram Bot</span>
+              {currentUser.telegramChatId ? (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                  ID: {currentUser.telegramChatId} {currentUser.telegramUsername ? `(@${currentUser.telegramUsername})` : ""}
+                </span>
+              ) : (
+                <span className="text-slate-400 font-medium">Not Linked</span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-slate-500 font-medium">Countdown Alert</span>
+              <span className="font-semibold text-slate-800">
+                {currentUser.telegramReminderMinutes ?? 10} min before meeting
               </span>
             </div>
           </div>

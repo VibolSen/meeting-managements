@@ -42,15 +42,54 @@ export function Navigation({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.userId) {
-      api.notifications
-        .getByUser(currentUser.userId)
-        .then((items) => {
-          setUnreadCount(items ? items.length : 0);
-        })
-        .catch(() => setUnreadCount(0));
-    }
+    const fetchUnread = () => {
+      if (currentUser?.userId) {
+        api.notifications
+          .getByUser(currentUser.userId)
+          .then((items) => {
+            setUnreadCount(items ? items.filter((n) => n.status !== "READ").length : 0);
+          })
+          .catch(() => setUnreadCount(0));
+      }
+    };
+
+    fetchUnread();
+
+    const handleReadEvent = () => fetchUnread();
+    window.addEventListener("notification-read", handleReadEvent);
+    return () => window.removeEventListener("notification-read", handleReadEvent);
   }, [currentUser?.userId]);
+
+  const [appName, setAppName] = useState("MeetingHub");
+  const [orgSubtitle, setOrgSubtitle] = useState("Smart Booking & Logistics");
+  const [logoUrl, setLogoUrl] = useState("/default logo/meeting-time.svg");
+
+  // Load dynamic branding from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBranding = () => {
+      api.systemSettings
+        .getPublic()
+        .then((items) => {
+          if (!isMounted || !Array.isArray(items)) return;
+          const app = items.find((i) => i.settingKey === "branding.app_name");
+          const org = items.find((i) => i.settingKey === "branding.organization_name");
+          const logo = items.find((i) => i.settingKey === "branding.logo_url");
+          if (app?.settingValue) setAppName(app.settingValue);
+          if (org?.settingValue) setOrgSubtitle(org.settingValue);
+          if (logo?.settingValue) setLogoUrl(logo.settingValue);
+        })
+        .catch(() => {});
+    };
+
+    fetchBranding();
+    const handleSettingsUpdated = () => fetchBranding();
+    window.addEventListener("system-settings-updated", handleSettingsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("system-settings-updated", handleSettingsUpdated);
+    };
+  }, []);
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode }[] = [
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -71,17 +110,17 @@ export function Navigation({
           >
             <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center p-1.5 group-hover:scale-105 transition-transform overflow-hidden">
               <img
-                src="/default logo/meeting-time.svg"
-                alt="Meeting Management System Logo"
+                src={logoUrl}
+                alt={appName}
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
               <span className="font-bold text-base tracking-tight text-slate-900 flex items-center gap-1.5">
-                MeetingHub <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">MMS</span>
+                {appName}
               </span>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Smart Booking & Logistics
+                {orgSubtitle}
               </p>
             </div>
           </div>

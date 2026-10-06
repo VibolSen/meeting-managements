@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { api, User, Department, UserRole, UserStatus } from "@/lib/api";
+import { api, User, Department, UserRole, UserStatus, BookingAccessLevel } from "@/lib/api";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
@@ -40,6 +40,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
+  const [accessFilter, setAccessFilter] = useState<string>("ALL");
   const [sortBy, setSortBy] = useState<UserSortField>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
@@ -91,6 +92,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
     role: "EMPLOYEE",
     departmentId: undefined,
     status: "ACTIVE",
+    bookingAccess: "FULL_ACCESS",
     avatarUrl: "",
   });
 
@@ -118,7 +120,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, roleFilter, statusFilter, departmentFilter, sortBy, sortOrder]);
+  }, [searchQuery, roleFilter, statusFilter, departmentFilter, accessFilter, sortBy, sortOrder]);
 
   // Filtered and Sorted Users
   const filteredAndSortedUsers = useMemo(() => {
@@ -145,7 +147,11 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
           ? !u.departmentId
           : String(u.departmentId) === departmentFilter);
 
-      return matchesSearch && matchesRole && matchesStatus && matchesDept;
+      const matchesAccess =
+        accessFilter === "ALL" ||
+        (u.bookingAccess || "FULL_ACCESS") === accessFilter;
+
+      return matchesSearch && matchesRole && matchesStatus && matchesDept && matchesAccess;
     });
 
     result.sort((a, b) => {
@@ -197,6 +203,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
     setRoleFilter("ALL");
     setStatusFilter("ALL");
     setDepartmentFilter("ALL");
+    setAccessFilter("ALL");
     setSortBy("name");
     setSortOrder("asc");
     setCurrentPage(1);
@@ -207,6 +214,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
     roleFilter !== "ALL" ||
     statusFilter !== "ALL" ||
     departmentFilter !== "ALL" ||
+    accessFilter !== "ALL" ||
     sortBy !== "name" ||
     sortOrder !== "asc";
 
@@ -251,13 +259,27 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
       const data = filteredAndSortedUsers.map((u) => {
         const dept = departments.find((d) => d.departmentId === u.departmentId);
         const deptName = dept?.name || u.departmentName || "Unassigned";
+        const dateJoined = u.createdAt
+          ? new Date(u.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "—";
+
         return {
           "User ID": u.userId,
           "Full Name": u.name,
           "Email Address": u.email,
           "Role": u.role,
+          "Job Title": u.jobTitle || "—",
           "Department": deptName,
           "Account Status": u.status || "ACTIVE",
+          "Booking Privilege": u.bookingAccess === "VIEW_ONLY" ? "View Only (Probation Staff)" : "Full Access",
+          "Phone / Mobile": u.phone || "—",
+          "Telegram Connection": u.telegramUsername ? `@${u.telegramUsername.replace("@", "")}` : u.telegramChatId ? `ID: ${u.telegramChatId}` : "Not Linked",
+          "Telegram Reminders": u.telegramNotificationsEnabled ? `ON (${u.telegramReminderMinutes || 10}m before)` : "OFF",
+          "Date Joined": dateJoined,
           "Avatar URL": u.avatarUrl || "",
         };
       });
@@ -283,7 +305,10 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
       role: "EMPLOYEE",
       departmentId: undefined,
       status: "ACTIVE",
+      bookingAccess: "FULL_ACCESS",
       avatarUrl: "",
+      jobTitle: "",
+      phone: "",
     });
     setFormModalOpen(true);
   };
@@ -299,7 +324,10 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
       role: user.role,
       departmentId: user.departmentId,
       status: user.status || "ACTIVE",
+      bookingAccess: user.bookingAccess || "FULL_ACCESS",
       avatarUrl: user.avatarUrl || "",
+      jobTitle: user.jobTitle || "",
+      phone: user.phone || "",
     });
     setFormModalOpen(true);
   };
@@ -333,7 +361,10 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
           role: userForm.role,
           departmentId: userForm.departmentId ? Number(userForm.departmentId) : undefined,
           status: userForm.status || "ACTIVE",
+          bookingAccess: userForm.bookingAccess || "FULL_ACCESS",
           avatarUrl: userForm.avatarUrl?.trim() || undefined,
+          jobTitle: userForm.jobTitle?.trim() || undefined,
+          phone: userForm.phone?.trim() || undefined,
         });
         toast.success(`User "${userForm.name}" created successfully.`);
       } else if (formMode === "edit" && editingUserId) {
@@ -344,7 +375,10 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
           role: userForm.role,
           departmentId: userForm.departmentId ? Number(userForm.departmentId) : undefined,
           status: userForm.status || "ACTIVE",
+          bookingAccess: userForm.bookingAccess || "FULL_ACCESS",
           avatarUrl: userForm.avatarUrl?.trim() || undefined,
+          jobTitle: userForm.jobTitle?.trim() || undefined,
+          phone: userForm.phone?.trim() || undefined,
         });
         toast.success(`User "${userForm.name}" updated successfully.`);
       }
@@ -357,7 +391,10 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
         role: "EMPLOYEE",
         departmentId: undefined,
         status: "ACTIVE",
+        bookingAccess: "FULL_ACCESS",
         avatarUrl: "",
+        jobTitle: "",
+        phone: "",
       });
       loadData();
     } catch (err: any) {
@@ -387,6 +424,48 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
       loadData();
     } catch (err: any) {
       toast.error(err?.message || `Failed to update status for ${user.name}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Toggle Single User Booking Access (Full Access <-> View Only)
+  const handleToggleBookingAccess = async (user: User) => {
+    const nextAccess: BookingAccessLevel =
+      user.bookingAccess === "VIEW_ONLY" ? "FULL_ACCESS" : "VIEW_ONLY";
+    setActionLoading(true);
+    try {
+      await api.users.updateBookingAccess(user.userId, nextAccess);
+      toast.success(
+        nextAccess === "VIEW_ONLY"
+          ? `User "${user.name}" set to View Only (probation / restricted from booking).`
+          : `User "${user.name}" granted Full Access (booking permitted).`
+      );
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to update booking access for ${user.name}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Batch Change Booking Access
+  const handleBatchChangeBookingAccess = async (access: BookingAccessLevel) => {
+    if (selectedUserIds.size === 0) return;
+    setActionLoading(true);
+    try {
+      await Promise.all(
+        Array.from(selectedUserIds).map((id) =>
+          api.users.updateBookingAccess(id, access)
+        )
+      );
+      toast.success(
+        `Updated booking access to ${access === "VIEW_ONLY" ? "View Only (Probation Staff)" : "Full Access"} for ${selectedUserIds.size} users.`
+      );
+      setSelectedUserIds(new Set());
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to batch update booking access.");
     } finally {
       setActionLoading(false);
     }
@@ -549,6 +628,8 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
           onStatusFilterChange={setStatusFilter}
           departmentFilter={departmentFilter}
           onDepartmentFilterChange={setDepartmentFilter}
+          accessFilter={accessFilter}
+          onAccessFilterChange={setAccessFilter}
           departments={departments}
           sortBy={sortBy}
           onSortByChange={setSortBy}
@@ -579,6 +660,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
             onEditUser={handleOpenEditModal}
             onDeleteUser={handleDeleteUser}
             onToggleStatus={handleToggleUserStatus}
+            onToggleBookingAccess={handleToggleBookingAccess}
           />
         ) : (
           <UserCardGrid
@@ -594,6 +676,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
             onEditUser={handleOpenEditModal}
             onDeleteUser={handleDeleteUser}
             onToggleStatus={handleToggleUserStatus}
+            onToggleBookingAccess={handleToggleBookingAccess}
           />
         )}
       </div>
@@ -622,6 +705,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
           onBatchChangeDepartment={handleBatchChangeDepartment}
           onBatchChangeRole={handleBatchChangeRole}
           onBatchChangeStatus={handleBatchChangeStatus}
+          onBatchChangeBookingAccess={handleBatchChangeBookingAccess}
           onBatchDelete={handleBatchDelete}
           actionLoading={actionLoading}
         />
@@ -657,6 +741,7 @@ export function UserManagementView({ currentUser = null }: UserManagementViewPro
         isAdmin={isAdmin}
         onEdit={(user) => handleOpenEditModal(user)}
         onToggleStatus={handleToggleUserStatus}
+        onToggleBookingAccess={handleToggleBookingAccess}
       />
 
       {/* Global Confirmation Dialog */}
