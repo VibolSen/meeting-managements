@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   ShieldCheck,
   Sparkles,
@@ -109,7 +110,7 @@ export function LaunchPage() {
       {/* ========================================================= */}
       {/* 2. TOP HEADER                                             */}
       {/* ========================================================= */}
-      <header className="shrink-0 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xs z-20">
+      <header className="shrink-0 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xs z-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
@@ -135,8 +136,19 @@ export function LaunchPage() {
             </div>
           </div>
 
-          {/* Right Action: Sign In */}
+          {/* Right Actions: Live Status + Theme Toggle + Sign In */}
           <div className="flex items-center gap-3">
+            {/* Live Telemetry & System Status Badge */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>System Operational</span>
+              <span className="text-emerald-300 dark:text-emerald-700">•</span>
+              <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">v1.5.0</span>
+            </div>
+
+            {/* Dark / Light Theme Toggle */}
+            <ThemeToggle />
+
             <Link
               href="/login"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/35 transition-all cursor-pointer"
@@ -146,6 +158,8 @@ export function LaunchPage() {
             </Link>
           </div>
         </div>
+        {/* Glowing Gradient Accent Line */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-linear-to-r from-transparent via-indigo-500/40 dark:via-indigo-400/30 to-transparent pointer-events-none" />
       </header>
 
       {/* ========================================================= */}

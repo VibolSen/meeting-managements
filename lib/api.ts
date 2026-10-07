@@ -78,6 +78,32 @@ export interface TelegramStatus {
   botLink: string;
 }
 
+export interface TelegramBotConfig {
+  botEnabled: boolean;
+  botTokenMasked?: string;
+  hasToken: boolean;
+  botUsername: string;
+  defaultChatId: string;
+  defaultReminderMinutes: number;
+  botLink: string;
+}
+
+export interface TelegramBotConfigUpdate {
+  botEnabled?: boolean;
+  botToken?: string;
+  botUsername?: string;
+  defaultChatId?: string;
+  defaultReminderMinutes?: number;
+}
+
+export interface TelegramValidationResult {
+  valid: boolean;
+  botId?: number;
+  botName?: string;
+  username?: string;
+  errorMessage?: string;
+}
+
 export interface NotificationTemplate {
   templateId?: number;
   type: NotificationType;
@@ -826,6 +852,17 @@ export const api = {
   // Telegram Multi-Channel Alerts & Templates
   telegram: {
     getStatus: () => request<TelegramStatus>("/telegram/status"),
+    getConfig: () => request<TelegramBotConfig>("/telegram/config"),
+    updateConfig: (data: TelegramBotConfigUpdate) =>
+      request<TelegramBotConfig>("/telegram/config", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    validateToken: (token?: string) =>
+      request<TelegramValidationResult>("/telegram/validate-token", {
+        method: "POST",
+        body: JSON.stringify({ token: token || "" }),
+      }),
     sendTest: (chatId?: string, customMessage?: string) =>
       request<{ success: boolean; targetChatId: string; message: string }>("/telegram/test", {
         method: "POST",

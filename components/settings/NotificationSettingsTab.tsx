@@ -17,10 +17,25 @@ import {
   MessageSquare,
   AlertCircle,
   Sparkles,
+  Bot,
+  Radio,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  KeyRound,
+  XCircle,
+  User as UserIcon,
 } from "lucide-react";
 import { AppSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
-import { api, TelegramStatus } from "@/lib/api";
+import {
+  api,
+  TelegramStatus,
+  TelegramBotConfig,
+  TelegramBotConfigUpdate,
+  TelegramValidationResult,
+} from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
 interface NotificationSettingsTabProps {
@@ -48,9 +63,25 @@ export function NotificationSettingsTab({
 }: NotificationSettingsTabProps) {
   const toast = useToast();
   const { user, setUser } = useAuth();
+  const effectiveIsAdmin = isAdmin || user?.role === "ADMIN";
 
-  // Telegram Configuration State
+  // Telegram General Status
   const [botStatus, setBotStatus] = useState<TelegramStatus | null>(null);
+
+  // Admin Server Bot Gateway State
+  const [adminConfig, setAdminConfig] = useState<TelegramBotConfig | null>(null);
+  const [adminTokenInput, setAdminTokenInput] = useState<string>("");
+  const [showToken, setShowToken] = useState<boolean>(false);
+  const [adminBotUsername, setAdminBotUsername] = useState<string>("MMS_Meeting_Alert_Bot");
+  const [adminDefaultChatId, setAdminDefaultChatId] = useState<string>("1035574371");
+  const [adminBotEnabled, setAdminBotEnabled] = useState<boolean>(true);
+  const [adminLeadMinutes, setAdminLeadMinutes] = useState<number>(10);
+  const [isValidatingToken, setIsValidatingToken] = useState<boolean>(false);
+  const [isSavingAdminConfig, setIsSavingAdminConfig] = useState<boolean>(false);
+  const [isSendingAdminBroadcastTest, setIsSendingAdminBroadcastTest] = useState<boolean>(false);
+  const [validationResult, setValidationResult] = useState<TelegramValidationResult | null>(null);
+
+  // User-Level Telegram State
   const [telegramChatId, setTelegramChatId] = useState<string>("");
   const [telegramUsername, setTelegramUsername] = useState<string>("");
   const [telegramNotificationsEnabled, setTelegramNotificationsEnabled] = useState<boolean>(true);
@@ -61,12 +92,25 @@ export function NotificationSettingsTab({
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
   const [isPlayingChime, setIsPlayingChime] = useState<boolean>(false);
 
-  // Load Bot Status & Initialize User Telegram Settings
+  // Load Bot Status & Admin Gateway Config
   useEffect(() => {
     api.telegram.getStatus().then((status) => {
       setBotStatus(status);
     }).catch(() => null);
 
+    if (effectiveIsAdmin) {
+      api.telegram.getConfig().then((cfg) => {
+        setAdminConfig(cfg);
+        setAdminBotUsername(cfg.botUsername || "MMS_Meeting_Alert_Bot");
+        setAdminDefaultChatId(cfg.defaultChatId || "1035574371");
+        setAdminBotEnabled(cfg.botEnabled ?? true);
+        setAdminLeadMinutes(cfg.defaultReminderMinutes || 10);
+      }).catch(() => null);
+    }
+  }, [effectiveIsAdmin]);
+
+  // Load Current User Telegram Preferences
+  useEffect(() => {
     if (user) {
       const chatId = user.telegramChatId || "";
       const username = user.telegramUsername || "";
@@ -98,6 +142,110 @@ export function NotificationSettingsTab({
     }
   };
 
+  // Admin Action: Validate Telegram Token live with Telegram API
+  const handleValidateToken = async () => {
+    try {
+      setIsValidatingToken(true);
+      setValidationResult(null);
+
+      const tokenToTest = adminTokenInput.trim() || undefined;
+      const res = await api.telegram.validateToken(tokenToTest);
+      setValidationResult(res);
+
+      if (res.valid) {
+        toast.success(
+          "Token Verified Successfully!",
+          `Connected to bot @${res.username || "bot"} (ID: ${res.botId}, Name: "${res.botName || "Telegram Bot"}").`
+        );
+        // Automatically sync bot username if detected
+        if (res.username && res.username !== adminBotUsername) {
+          setAdminBotUsername(res.username);
+        }
+      } else {
+        toast.error(
+          "Verification Failed",
+          res.errorMessage || "Telegram API rejected the token."
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Validation request failed";
+      setValidationResult({
+        valid: false,
+        errorMessage: msg,
+      });
+      toast.error("Verification Request Failed", msg);
+    } finally {
+      setIsValidatingToken(false);
+    }
+  };
+
+  // Admin Action: Save Server Bot Gateway Configuration
+  const handleSaveAdminConfig = async () => {
+    try {
+      setIsSavingAdminConfig(true);
+      const payload: TelegramBotConfigUpdate = {
+        botEnabled: adminBotEnabled,
+        botUsername: adminBotUsername.trim().replace(/^@/, ""),
+        defaultChatId: adminDefaultChatId.trim(),
+        defaultReminderMinutes: adminLeadMinutes,
+      };
+
+      if (adminTokenInput.trim() && !adminTokenInput.includes("••••")) {
+        payload.botToken = adminTokenInput.trim();
+      }
+
+      const updated = await api.telegram.updateConfig(payload);
+      setAdminConfig(updated);
+      setAdminTokenInput("");
+      setValidationResult(null);
+
+      // Refresh public status
+      const freshStatus = await api.telegram.getStatus();
+      setBotStatus(freshStatus);
+
+      toast.success(
+        "Server Gateway Saved!",
+        "Telegram credentials are securely saved in MySQL and active immediately with zero restart."
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save server Telegram configuration";
+      toast.error("Save Failed", msg);
+    } finally {
+      setIsSavingAdminConfig(false);
+    }
+  };
+
+  // Admin Action: Send Server Broadcast Test
+  const handleSendAdminBroadcastTest = async () => {
+    const target = adminDefaultChatId.trim() || botStatus?.defaultChatId;
+    if (!target) {
+      toast.error("Broadcast Chat ID Missing", "Please enter a Default Chat ID or Channel ID before testing.");
+      return;
+    }
+
+    try {
+      setIsSendingAdminBroadcastTest(true);
+      const res = await api.telegram.sendTest(
+        target,
+        "🔔 *MMS BOT GATEWAY SYSTEM TEST*\n\n" +
+          "✅ *Gateway Status:* Online & Verified\n" +
+          "🤖 *Bot Handle:* @" + (adminBotUsername || "MMS_Meeting_Alert_Bot") + "\n" +
+          "📡 *Default Broadcast Chat ID:* `" + target + "`\n\n" +
+          "Enterprise meeting alerts, automatic reminders, and calendar notifications are fully operational!"
+      );
+      toast.success(
+        "Broadcast Test Sent!",
+        `Dispatched test notification to chat ${res.targetChatId} via @${adminBotUsername}.`
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not dispatch broadcast test message";
+      toast.error("Delivery Failed", msg);
+    } finally {
+      setIsSendingAdminBroadcastTest(false);
+    }
+  };
+
+  // User Action: Save Personal Telegram Preferences
   const handleSaveTelegram = async () => {
     if (!user) {
       toast.error("Authentication Error", "You must be signed in to save preferences.");
@@ -134,6 +282,7 @@ export function NotificationSettingsTab({
     }
   };
 
+  // User Action: Send Personal Test Alert
   const handleSendTestAlert = async () => {
     const target = telegramChatId.trim() || botStatus?.defaultChatId;
     if (!target) {
@@ -158,7 +307,9 @@ export function NotificationSettingsTab({
   const playChimePreview = () => {
     try {
       setIsPlayingChime(true);
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) {
         setIsPlayingChime(false);
         return;
@@ -238,13 +389,273 @@ export function NotificationSettingsTab({
           Notification & Alert Channels
         </h3>
         <p className="text-xs text-slate-500 mt-0.5">
-          Configure real-time Telegram bot broadcasts, dynamic countdown lead times, in-app triggers, and email digests.
+          Configure real-time Telegram bot broadcasts, live bot credentials, countdown lead times, in-app triggers, and email digests.
         </p>
       </div>
 
-      {/* ===================== TELEGRAM BOT INTEGRATION CARD ===================== */}
+      {/* ===================== SECTION A: ADMIN BOT GATEWAY CONFIGURATION ===================== */}
+      {effectiveIsAdmin && (
+        <div className="rounded-2xl border border-violet-200 dark:border-violet-900/60 bg-linear-to-br from-white via-violet-50/25 to-indigo-50/20 dark:from-slate-900/90 dark:via-[#111827] dark:to-slate-900/90 shadow-xs overflow-hidden">
+          {/* Admin Gateway Header */}
+          <div className="px-5 py-4 border-b border-violet-100/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Telegram Server Bot Gateway
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-violet-100 text-violet-800 inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-violet-700" />
+                    Admin Config
+                  </span>
+                  {adminConfig?.hasToken && adminBotEnabled ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Gateway Online
+                    </span>
+                  ) : !adminConfig?.hasToken ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      <AlertCircle className="w-3 h-3 text-amber-600" />
+                      Token Required
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                      Gateway Inactive
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Manage the server-side Telegram bot credentials stored directly in MySQL with instant live activation.
+                </p>
+              </div>
+            </div>
+
+            {/* Master Bot Gateway Switch */}
+            <div className="flex items-center gap-2.5 self-end sm:self-center bg-violet-50/60 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-violet-100 dark:border-slate-700">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                {adminBotEnabled ? "Gateway Active" : "Gateway Paused"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={adminBotEnabled}
+                onClick={() => setAdminBotEnabled(!adminBotEnabled)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+                  adminBotEnabled ? "bg-violet-600" : "bg-slate-300 dark:bg-slate-700"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    adminBotEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Admin Gateway Body */}
+          <div className="p-5 space-y-4">
+            {/* Live Token Verification Banner (if tested) */}
+            {validationResult && (
+              <div
+                className={`p-3.5 rounded-xl border flex items-start gap-3 transition-all ${
+                  validationResult.valid
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                    : "bg-rose-50 border-rose-200 text-rose-900"
+                }`}
+              >
+                {validationResult.valid ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 text-xs">
+                  {validationResult.valid ? (
+                    <div>
+                      <div className="font-bold flex items-center gap-2">
+                        <span>Telegram Bot Verified & Ready</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-200/80 text-emerald-900 font-mono">
+                          ID: {validationResult.botId}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                        Successfully connected to bot{" "}
+                        <span className="font-bold">@{validationResult.username}</span>
+                        {validationResult.botName && ` (${validationResult.botName})`}. Outgoing reminder alerts will dispatch seamlessly.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="font-bold">Token Verification Failed</div>
+                      <p className="text-[11px] text-rose-800 mt-0.5 leading-relaxed">
+                        {validationResult.errorMessage || "The Telegram API returned an error for this token."}
+                      </p>
+                      <p className="text-[10px] text-rose-700 mt-1">
+                        Tip: Open Telegram, chat with <span className="font-semibold">@BotFather</span>, and issue <code className="bg-rose-100 px-1 py-0.2 rounded font-mono">/token</code> to inspect or regenerate your bot key.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Credential Inputs Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Bot API Token */}
+              <div className="md:col-span-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-violet-600" />
+                    <span>Telegram Bot Token</span>
+                  </label>
+                  <span className="text-[10px] text-slate-500">
+                    {adminConfig?.hasToken ? (
+                      <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Stored in MySQL ({adminConfig.botTokenMasked})
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 font-semibold">Not configured</span>
+                    )}
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <input
+                    type={showToken ? "text" : "password"}
+                    value={adminTokenInput}
+                    onChange={(e) => setAdminTokenInput(e.target.value)}
+                    placeholder={
+                      adminConfig?.hasToken
+                        ? "Enter new token to replace existing stored key"
+                        : "Paste bot token e.g. 8874617484:AAFev-b... from @BotFather"
+                    }
+                    className="w-full pl-3.5 pr-20 py-2.5 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs font-mono text-slate-900 bg-white shadow-2xs"
+                  />
+                  <div className="absolute right-2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      title={showToken ? "Hide Token" : "Show Token"}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleValidateToken}
+                      disabled={isValidatingToken || (!adminTokenInput.trim() && !adminConfig?.hasToken)}
+                      className="px-2.5 py-1 rounded-lg bg-violet-100 hover:bg-violet-200 text-violet-900 text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isValidatingToken ? "animate-spin text-violet-700" : ""}`} />
+                      <span>{isValidatingToken ? "Testing..." : "Verify"}</span>
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Issued exclusively by <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-violet-700 font-semibold hover:underline">@BotFather</a>. Never committed to Git repositories or hardcoded in configuration files.
+                </p>
+              </div>
+
+              {/* Bot Username */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                  <span>Bot Handle / Username</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Without @</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-xs font-mono text-slate-400">@</span>
+                  <input
+                    type="text"
+                    value={adminBotUsername}
+                    onChange={(e) => setAdminBotUsername(e.target.value.replace(/^@/, ""))}
+                    placeholder="MMS_Meeting_Alert_Bot"
+                    className="w-full pl-7 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs font-mono text-slate-900 bg-white shadow-2xs"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed truncate">
+                  Link:{" "}
+                  <a
+                    href={`https://t.me/${adminBotUsername}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-violet-700 font-semibold hover:underline inline-flex items-center gap-0.5"
+                  >
+                    t.me/{adminBotUsername || "bot"}
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </p>
+              </div>
+
+              {/* Default Broadcast Chat ID */}
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                  <span>Default Broadcast Chat / Channel ID</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Company group or channel</span>
+                </label>
+                <input
+                  type="text"
+                  value={adminDefaultChatId}
+                  onChange={(e) => setAdminDefaultChatId(e.target.value)}
+                  placeholder="e.g. 1035574371 or -1001234567890"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs font-mono text-slate-900 bg-white shadow-2xs"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Fallback recipient for system-wide announcements or unassigned room event alerts.
+                </p>
+              </div>
+
+              {/* Default Lead Minutes */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                  <span>Default System Lead Time</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Minutes</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={adminLeadMinutes}
+                  onChange={(e) => setAdminLeadMinutes(parseInt(e.target.value, 10) || 10)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs font-mono text-slate-900 bg-white shadow-2xs"
+                />
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Default countdown minutes for participants who have not set a custom preference.
+                </p>
+              </div>
+            </div>
+
+            {/* Admin Action Footer */}
+            <div className="pt-3 flex flex-wrap items-center justify-between gap-3 border-t border-violet-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={handleSendAdminBroadcastTest}
+                disabled={isSendingAdminBroadcastTest || !adminConfig?.hasToken}
+                className="px-3.5 py-2 rounded-xl border border-violet-200 bg-violet-50/70 hover:bg-violet-100 text-xs font-semibold text-violet-900 transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5 text-violet-700" />
+                <span>{isSendingAdminBroadcastTest ? "Sending Test..." : "Send Server Broadcast Test"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveAdminConfig}
+                disabled={isSavingAdminConfig}
+                className="px-4 py-2 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 active:scale-95 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSavingAdminConfig ? "Persisting..." : "Save Server Configuration"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== SECTION B: PERSONAL TELEGRAM ALERTS CARD ===================== */}
       <div className="rounded-2xl border border-sky-200/90 dark:border-slate-800 bg-linear-to-br from-white via-sky-50/20 to-indigo-50/20 dark:from-slate-900/90 dark:via-[#111827] dark:to-slate-900/90 shadow-xs overflow-hidden">
-        {/* Telegram Card Header */}
+        {/* User Card Header */}
         <div className="px-5 py-4 border-b border-sky-100/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
@@ -252,9 +663,11 @@ export function NotificationSettingsTab({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-900 dark:text-white">Telegram Bot Notifications</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Personal Telegram Meeting Alerts
+                </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800">
-                  Multi-Channel
+                  Staff Preference
                 </span>
                 {botStatus?.botEnabled && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
@@ -266,22 +679,22 @@ export function NotificationSettingsTab({
               <p className="text-[11px] text-slate-500 mt-0.5">
                 Official Bot:{" "}
                 <a
-                  href={botStatus?.botLink || "https://t.me/MMS_Meeting_Alert_Bot"}
+                  href={botStatus?.botLink || `https://t.me/${adminBotUsername || "MMS_Meeting_Alert_Bot"}`}
                   target="_blank"
                   rel="noreferrer"
                   className="font-semibold text-sky-700 hover:underline inline-flex items-center gap-0.5"
                 >
-                  @{botStatus?.botUsername || "MMS_Meeting_Alert_Bot"}
+                  @{botStatus?.botUsername || adminBotUsername || "MMS_Meeting_Alert_Bot"}
                   <ExternalLink className="w-2.5 h-2.5" />
                 </a>
               </p>
             </div>
           </div>
 
-          {/* Master Enable/Disable Switch */}
+          {/* User Alerts Switch */}
           <div className="flex items-center gap-2.5 self-end sm:self-center">
             <span className="text-[11px] font-semibold text-slate-600">
-              {telegramNotificationsEnabled ? "Alerts Active" : "Alerts Paused"}
+              {telegramNotificationsEnabled ? "My Alerts Active" : "My Alerts Paused"}
             </span>
             <button
               type="button"
@@ -301,14 +714,14 @@ export function NotificationSettingsTab({
           </div>
         </div>
 
-        {/* Telegram Card Body */}
+        {/* User Card Body */}
         <div className="p-5 space-y-5">
           {/* User Chat ID & Username Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>Your Telegram Chat ID</span>
-                <span className="text-[10px] text-slate-400 font-normal">Required for direct DM</span>
+                <span>Your Personal Telegram Chat ID</span>
+                <span className="text-[10px] text-slate-400 font-normal">Required for direct DM alerts</span>
               </label>
               <div className="relative">
                 <input
@@ -330,14 +743,14 @@ export function NotificationSettingsTab({
                   @userinfobot
                   <ExternalLink className="w-2.5 h-2.5" />
                 </a>{" "}
-                on Telegram or typing <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-slate-700">/start</code> in our bot.
+                on Telegram or typing <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-slate-700">/start</code> in our official bot.
               </p>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                <span>Telegram Username (Optional)</span>
-                <span className="text-[10px] text-slate-400 font-normal">For display & tagging</span>
+                <span>Your Telegram Username (Optional)</span>
+                <span className="text-[10px] text-slate-400 font-normal">For display & roster tagging</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2 text-xs font-mono text-slate-400">@</span>
@@ -345,7 +758,7 @@ export function NotificationSettingsTab({
                   type="text"
                   value={telegramUsername.replace(/^@/, "")}
                   onChange={(e) => setTelegramUsername(e.target.value.replace(/^@/, ""))}
-                  placeholder="vibolsen"
+                  placeholder="username"
                   className="w-full pl-7 pr-3.5 py-2 rounded-xl border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-xs font-mono text-slate-900 bg-white shadow-2xs"
                 />
               </div>
@@ -362,14 +775,14 @@ export function NotificationSettingsTab({
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-sky-600" />
                   <span className="text-xs font-bold text-slate-900">
-                    Dynamic Pre-Meeting Reminder Lead Time
+                    Pre-Meeting Reminder Lead Time
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800">
                     Personal Setting
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Choose how many minutes before your meeting start time you want the Telegram countdown alert.
+                  Choose how many minutes prior to meeting start time you want the Telegram reminder alert.
                 </p>
               </div>
 
@@ -436,7 +849,7 @@ export function NotificationSettingsTab({
               </button>
             </div>
 
-            {/* Custom Minutes Input field (shown when Custom is active) */}
+            {/* Custom Minutes Input field */}
             {isCustomMinutes && (
               <div className="pt-2 flex items-center gap-3">
                 <div className="flex items-center gap-2">
