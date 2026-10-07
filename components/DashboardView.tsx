@@ -168,11 +168,13 @@ export function DashboardView({ currentUser, onNavigate }: DashboardViewProps) {
       {dashboardTab === "overview" && (
         <>
           {/* 3. Interactive KPI Metrics Grid */}
-          <DashboardKpiGrid
-            summary={summary}
-            loading={loading}
-            onNavigate={handleNavigate}
-          />
+          <div data-tour="kpi-metrics">
+            <DashboardKpiGrid
+              summary={summary}
+              loading={loading}
+              onNavigate={handleNavigate}
+            />
+          </div>
 
           {/* 4. Main Operational Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-4 items-start">

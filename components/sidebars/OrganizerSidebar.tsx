@@ -217,6 +217,7 @@ export function OrganizerSidebar({
 
         {/* Main Navigation Links */}
         <nav
+          data-tour="sidebar-nav"
           className={`py-3 space-y-1.5 flex-1 overflow-y-auto ${
             collapsed ? "px-1.5" : "px-3"
           }`}
@@ -245,6 +246,15 @@ export function OrganizerSidebar({
                 key={item.id}
                 href={item.href}
                 prefetch={true}
+                data-tour={
+                  item.id === "book-meeting"
+                    ? "nav-booking"
+                    : item.id === "room-schedule"
+                    ? "nav-calendar"
+                    : item.id === "my-meetings"
+                    ? "nav-meetings"
+                    : undefined
+                }
                 onClick={() => {
                   setPendingPath(item.href);
                   if (onTabChange) {

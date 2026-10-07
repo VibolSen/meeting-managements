@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 import { AuthProvider } from "@/lib/auth";
+import { TourProvider } from "@/components/tour/TourContext";
+import { InteractiveTour } from "@/components/tour/InteractiveTour";
+import { UserGuidelinesModal } from "@/components/tour/UserGuidelinesModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,7 +66,11 @@ export default function RootLayout({
 
         <ToastProvider>
           <AuthProvider>
-            <div className="relative z-10 flex-1 flex flex-col">{children}</div>
+            <TourProvider>
+              <div className="relative z-10 flex-1 flex flex-col">{children}</div>
+              <InteractiveTour />
+              <UserGuidelinesModal />
+            </TourProvider>
           </AuthProvider>
         </ToastProvider>
       </body>

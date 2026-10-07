@@ -176,6 +176,7 @@ export function OrganizerDashboardView({ initialUser }: OrganizerDashboardViewPr
               onClick={() => router.push("/organizer/book-meeting")}
               className="h-8.5 text-xs px-3.5 shadow-indigo-600/20"
               leftIcon={<Plus className="w-3.5 h-3.5" />}
+              data-tour="nav-booking"
             >
               Schedule Meeting
             </Button>
@@ -196,15 +197,17 @@ export function OrganizerDashboardView({ initialUser }: OrganizerDashboardViewPr
       <OrganizerQuickActions />
 
       {/* Upcoming Meetings Feed */}
-      <OrganizerUpcomingFeed
-        meetings={upcomingMeetings}
-        loading={loading}
-        onSelectMeeting={(m) => {
-          setSelectedMeeting(m);
-          setDetailsModalOpen(true);
-        }}
-        onScheduleNew={() => router.push("/organizer/book-meeting")}
-      />
+      <div data-tour="nav-meetings">
+        <OrganizerUpcomingFeed
+          meetings={upcomingMeetings}
+          loading={loading}
+          onSelectMeeting={(m) => {
+            setSelectedMeeting(m);
+            setDetailsModalOpen(true);
+          }}
+          onScheduleNew={() => router.push("/organizer/book-meeting")}
+        />
+      </div>
 
       {/* Meeting Details Inspection Modal */}
       <MeetingDetailsModal

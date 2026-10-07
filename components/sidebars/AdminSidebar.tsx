@@ -12,6 +12,7 @@ import {
   Package,
   Users,
   UserCheck,
+  Settings,
   ChevronLeft,
   ChevronRight,
   X,
@@ -28,6 +29,7 @@ export type AdminTab =
   | "staff"
   | "users"
   | "departments"
+  | "settings"
   | "booking";
 
 export interface AdminSidebarProps {
@@ -143,6 +145,12 @@ export function AdminSidebar({
       icon: <Building2 className="w-4.5 h-4.5" />,
       href: "/admin/department-management",
     },
+    {
+      id: "settings",
+      label: "Settings & Governance",
+      icon: <Settings className="w-4.5 h-4.5" />,
+      href: "/admin/settings",
+    },
   ];
 
   return (
@@ -234,6 +242,7 @@ export function AdminSidebar({
 
         {/* Main Navigation Links */}
         <nav
+          data-tour="sidebar-nav"
           className={`py-3 space-y-1.5 flex-1 overflow-y-auto ${
             collapsed ? "px-1.5" : "px-3"
           }`}
@@ -261,6 +270,13 @@ export function AdminSidebar({
                 key={item.id}
                 href={item.href}
                 prefetch={true}
+                data-tour={
+                  item.id === "settings"
+                    ? "nav-settings"
+                    : item.id === "dashboard"
+                    ? "nav-dashboard"
+                    : undefined
+                }
                 onClick={() => {
                   setPendingPath(item.href);
                   if (onTabChange) {

@@ -12,11 +12,13 @@ import {
   User as UserIcon,
   Settings,
   Clock,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api, UserRole, getStoredToken } from "@/lib/api";
 import { UserAvatar } from "@/components/users/UserAvatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTour } from "@/components/tour/TourContext";
 
 interface HeaderProps {
   title?: string;
@@ -32,6 +34,7 @@ export function Header({
   onOpenMobileSidebar,
 }: HeaderProps = {}) {
   const { user, logout, loading: authLoading } = useAuth();
+  const { openGuidelines } = useTour();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -186,11 +189,11 @@ export function Header({
         </button>
 
         {title ? (
-          <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight hidden sm:block">
+          <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight hidden sm:block" data-tour="workspace-role">
             {title}
           </h1>
         ) : (
-          <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <div className="hidden lg:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400" data-tour="workspace-role">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-slate-800 dark:text-slate-100 font-bold">
               {effectiveRole === "ADMIN"
@@ -209,7 +212,7 @@ export function Header({
       <div className="flex items-center gap-2.5 sm:gap-3">
         {/* Real-time Digital Clock & Date Telemetry */}
         {currentTime && (
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/80 text-xs text-slate-700 dark:text-slate-300 shadow-2xs font-mono">
+          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/80 text-xs text-slate-700 dark:text-slate-300 shadow-2xs font-mono" data-tour="telemetry-clock">
             <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span className="font-bold tracking-tight text-slate-900 dark:text-white">{currentTime}</span>
             <span className="text-slate-300 dark:text-slate-700">•</span>
@@ -218,12 +221,27 @@ export function Header({
         )}
 
         {/* Dark/Light Theme Toggle */}
-        <ThemeToggle />
+        <div data-tour="theme-toggle">
+          <ThemeToggle />
+        </div>
+
+        {/* Help & Guided Tour Trigger */}
+        <button
+          type="button"
+          onClick={() => openGuidelines()}
+          data-tour="help-tour"
+          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors shadow-xs cursor-pointer"
+          title="Help, Guidelines & Interactive Tour"
+          aria-label="Help, Guidelines & Interactive Tour"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
 
         {/* Notifications Bell */}
         <button
           type="button"
           onClick={onOpenNotifications}
+          data-tour="notifications-bell"
           className="relative p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors shadow-xs cursor-pointer"
           aria-label="Notifications"
           title="Notifications"
@@ -237,7 +255,7 @@ export function Header({
         </button>
 
         {/* Profile Dropdown */}
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative" ref={dropdownRef} data-tour="user-profile">
           <button
             type="button"
             onClick={() => setDropdownOpen(!dropdownOpen)}

@@ -208,6 +208,7 @@ export function EmployeeSidebar({
 
         {/* Main Navigation Links */}
         <nav
+          data-tour="sidebar-nav"
           className={`py-3 space-y-1.5 flex-1 overflow-y-auto ${
             collapsed ? "px-1.5" : "px-3"
           }`}
@@ -236,6 +237,15 @@ export function EmployeeSidebar({
                 key={item.id}
                 href={item.href}
                 prefetch={true}
+                data-tour={
+                  item.id === "my-schedule"
+                    ? "agenda-feed"
+                    : item.id === "my-invitations"
+                    ? "rsvp-controls"
+                    : item.id === "room-schedule"
+                    ? "room-browser"
+                    : undefined
+                }
                 onClick={() => {
                   setPendingPath(item.href);
                   if (onTabChange) {

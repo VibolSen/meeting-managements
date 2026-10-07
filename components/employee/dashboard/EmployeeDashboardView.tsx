@@ -125,11 +125,13 @@ export function EmployeeDashboardView() {
       />
 
       {/* 4. Today's Agenda Feed */}
-      <EmployeeTodaySchedule
-        todayMeetings={todayMeetings}
-        currentUser={currentUser}
-        onSelectMeeting={handleOpenMeetingDetails}
-      />
+      <div data-tour="agenda-feed">
+        <EmployeeTodaySchedule
+          todayMeetings={todayMeetings}
+          currentUser={currentUser}
+          onSelectMeeting={handleOpenMeetingDetails}
+        />
+      </div>
 
       {/* 5. Quick Actions */}
       <EmployeeQuickActions
